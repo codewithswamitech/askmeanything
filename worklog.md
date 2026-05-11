@@ -124,3 +124,244 @@ The Web Research Agent Platform is fully functional and production-ready for its
 5. **Add result quality scoring** — implement the existing `qualityScore` field on SearchResult with actual scoring logic
 6. **Add report templates** — allow users to choose between different report formats (executive summary, detailed, academic)
 7. **Add research comparison** — ability to compare results from multiple queries side-by-side
+
+---
+Task ID: 4
+Agent: Feature Agent
+Task: Implement 5 New Features — Elapsed Timer, Research Settings, Copy Report, Stats Summary, Search Enhancements
+
+Work Log:
+- Read worklog.md and all 8 source files to understand full codebase architecture
+- Updated Zustand store (src/lib/store.ts):
+  - Added `startTime: number | null` and `elapsedSeconds: number` for timer state
+  - Added `settings: ResearchSettings` with `maxSources` and `pagesToScrape` (defaults: 10, 5)
+  - Added actions: `startTimer()`, `tickTimer()`, `stopTimer()`, `setSettings()`
+  - Updated `resetSession()` to clear timer and settings state
+- Feature 1 — Elapsed Time Tracker (page.tsx):
+  - Added `formatElapsed()` helper (e.g., "23s", "1m 23s", "2m")
+  - Added `useEffect` with `setInterval` to tick timer every second while `isProcessing`
+  - Live timer displayed inside the "Processing..." badge during research
+  - Final elapsed time shown as green badge with Timer icon after completion
+  - `startTimer()` called when research begins, `stopTimer()` called in `finally` block
+- Feature 2 — Research Settings (query-input.tsx):
+  - Added settings popover (shadcn Popover) next to Research button with gear icon
+  - Two Select dropdowns: Max Sources (5/10/15/20) and Pages to Scrape (2/3/5/8)
+  - Settings persisted in Zustand store, disabled while processing
+  - Active settings shown as small badges/pills in the query input header
+  - Frontend passes settings in POST body to `/api/agent/research`
+- Feature 3 — Copy Full Report (results-panel.tsx):
+  - Added "Copy Report" button at top of ReportTab when report is available
+  - Uses `navigator.clipboard.writeText()` with sonner `toast.success()` notification
+  - Animated check icon transition when copied (framer-motion scale + rotate)
+  - Auto-resets copied state after 2.5 seconds
+- Feature 4 — Research Stats Summary Card (results-panel.tsx):
+  - New `StatsSummaryCard` component with 4 animated stat cards in a 2×2 / 4-column grid
+  - Stats: Sources Found, Pages Scraped, Time Elapsed, Steps Completed
+  - Each card has color-coded icon (blue, emerald, amber, violet)
+  - Staggered framer-motion entrance (0.1s delay per card)
+  - Appears above tabs in ResultsPanel only after research completes
+- Feature 5 — Session Search Enhancements (history-panel.tsx):
+  - Added match count display: "X of Y results match" below filter input
+  - Added clear button (X icon) inside input with animated appearance/disappearance
+  - Added `HighlightedText` component using regex split with `bg-emerald-500/20` highlight spans
+  - Highlighting applied to both query text and summary text in history cards
+- Backend update (src/app/api/agent/research/route.ts):
+  - Added `maxSources` and `pagesToScrape` to `ResearchRequest` interface
+  - Destructured with defaults: `maxSources = 10`, `pagesToScrape = 5`
+  - Used `maxSources` for `web_search` invoke `num` parameter
+  - Renamed local `pagesToScrape` to `pagesToScrapeList` to avoid naming conflict
+  - Used `pagesToScrape` setting for `.slice(0, pagesToScrape)` on search results
+- All changes verified with zero lint errors and successful compilation (122ms)
+
+Stage Summary:
+- 5 new features implemented across 6 files
+- Elapsed timer provides real-time feedback during and after research
+- Settings popover allows users to configure research depth before starting
+- Copy Report button makes it easy to share research findings
+- Stats Summary Card gives at-a-glance overview of research metrics
+- Search enhancements improve history panel usability with filtering feedback
+- Backend properly respects user-configured settings
+
+### Files Modified
+- `src/lib/store.ts` — Added timer state, settings state, and 4 new actions
+- `src/app/page.tsx` — Added elapsed timer display, timer lifecycle management, settings pass-through
+- `src/components/research/query-input.tsx` — Added settings popover, Select dropdowns, settings badges
+- `src/components/research/results-panel.tsx` — Added StatsSummaryCard, Copy Report button, timer stat
+- `src/components/research/history-panel.tsx` — Added match count, clear button, text highlighting
+- `src/app/api/agent/research/route.ts` — Added settings to request interface, used in web_search and scrape steps
+
+### Verification Results
+- ESLint: Zero errors
+- TypeScript compilation: Success (122ms)
+- Dev server: Running correctly, all Prisma queries execute normally
+
+---
+Task ID: 3-a
+Agent: Frontend Styling Expert
+Task: Comprehensive Styling Overhaul and Polish
+
+Work Log:
+- Read worklog.md and all 8 source files to understand current styling state
+- Performed a comprehensive styling overhaul across the entire platform
+
+### 1. Global CSS (globals.css)
+- Added `scroll-behavior: smooth` globally on `html`
+- Added emerald selection colors (`::selection` with oklch emerald tones)
+- Added `focus-visible` styles with 2px emerald outline + 2px offset + 4px radius
+- Added `.tooltip` utility class with `data-tooltip` attribute, animated fade+slide-in
+- Added `.gradient-border` utility using CSS mask for gradient borders on hover (emerald→teal)
+- Added `.noise-overlay` utility with SVG fractal noise texture (1.5% light, 3% dark)
+- Added `.mesh-gradient` utility with multi-radial-gradient background (4 color stops)
+- Added `.floating-particle` keyframe animation with `--duration` and `--delay` CSS vars
+- Added `.breathing-ring` keyframe animation (box-shadow pulse)
+- Added `.progress-gradient` utility with shimmer animation for progress bars
+- Enhanced prose/report styles: blockquote with bg + rounded-r, code with emerald tint, pre with border, table thead with emerald border, tbody hover rows, img rounded+shadow
+- Added `.animate-card-enter` keyframe (scale 0.95 + translateY 8px → normal)
+
+### 2. Header Enhancement (page.tsx)
+- Added gradient border-bottom on header (emerald→teal, 2px height, 60-80% opacity)
+- Logo area: added animated glow box-shadow cycling (emerald + teal, 4s infinite)
+- Logo icon: larger 9×9 container with gradient bg overlay, border emerald/20, backdrop-blur
+- "Processing..." badge: replaced simple dot with ping animation (absolute ping dot + solid dot), added amber shadow
+- "New Research" button: hover transitions to emerald text + emerald/10 bg with 200ms duration
+- Changed root layout from `h-screen` to `min-h-screen` for sticky footer support
+
+### 3. Empty State / Welcome Page (empty-state.tsx)
+- Replaced single radial gradient with multi-layer `.mesh-gradient` background
+- Added grid/mesh pattern overlay (40×40 cross-hatch lines, 3%/1.5% opacity)
+- Added 12 floating decorative particle dots using framer-motion (randomized positions, sizes, durations, delays)
+- Hero section: increased to 65vh min-height, hero icon to 28×28 with emerald shadow
+- Background glow: larger 48×48, triple-color gradient (emerald→teal→cyan), increased shimmer to 16px drop-shadow
+- Feature cards: added `.gradient-border` utility, `whileHover={{ y: -2 }}`, hover shadow-lg emerald/5, icon bg transitions to emerald on hover
+- Example queries: added left accent border (3px gradient emerald→teal) using scale-y animation, improved icon bg transition, arrow turns emerald on hover
+
+### 4. Agent Steps Pipeline (agent-steps.tsx)
+- Added vertical connecting line between steps with gradient (completed: emerald gradient; pending: border gradient)
+- Each step node has status-matching glow shadow (running: amber/30, completed: emerald/20, failed: red/20)
+- Running steps: breathing ring animation (box-shadow pulse 0→6px→0, 2s infinite)
+- Added step number badge (9px bold text, top-left of each node, muted-foreground/50)
+- Progress bar: upgraded to gradient with shimmer animation (`.progress-gradient`), added percentage display (10px tabular-nums, right-aligned)
+- Progress container: increased padding to 2.5, added 32px min-width for percentage
+
+### 5. Results Panel (results-panel.tsx)
+- Tab triggers: polished with rounded-md, p-1.5 gap, shadow-sm on active, emerald text on active state
+- Tab badges: emerald-tinted background (emerald-50/emerald-500/10) with emerald text
+- Source cards: added left accent border on hover (3px gradient, scale-y animation), entrance animation now includes `scale: 0.95`, title turns emerald on hover, external link turns emerald
+- Scraped content: entrance includes scale animation, accordion items get hover border transition
+- Empty states: redesigned with relative container, soft gradient glow behind icon, centered text with max-width constraint
+- Report empty state: uses FileQuestion icon instead of generic FileOutput
+
+### 6. History Panel (history-panel.tsx)
+- Added slide-in colored left border on hover (3px gradient emerald→teal, scale-y transition)
+- Active cards always show the left border
+- Search filter: polished focus state with emerald ring (30% opacity), bg transition on focus, icon opacity reduced
+- Added time-based group headers: "Today", "Yesterday", "This Week", "Older" with `getTimeGroup()` helper
+- History items grouped by `getTimeGroup()` in ordered groups
+- Group header: uppercase tracking-wider text with right-extending border line
+- Count badge: emerald-tinted (emerald-50/emerald-500/10)
+- Empty state: redesigned with FileSearch icon, gradient glow backdrop, max-width text constraint
+- Delete all button: added red hover state (bg-red-50, dark:bg-red-500/10)
+
+### 7. Query Input (query-input.tsx)
+- Focus glow: larger (-inset-[3px]) and softer (blur-md) gradient, reduced opacity (40%/30%)
+- Added border color transition on focus (emerald-500/30) + emerald shadow
+- Disabled state: opacity-60 + pointer-events-none class on container
+- Added character count indicator (charCount/500, 10px tabular-nums, amber warning at 90%+)
+- Keyboard shortcut badge: improved with inline-flex, 1px border shadow, 11px font-mono
+- Submit button: gradient background (emerald-600→teal-600) with hover shadow-emerald-500/20
+
+### 8. Footer (page.tsx)
+- Added sticky footer with `shrink-0 border-t bg-background/80 backdrop-blur-sm`
+- Minimal text: "Powered by AI Research Agent · Built with Next.js"
+- Version badge: "v1.0.0" in 10px mono, muted-foreground/40
+- Decorative separators: 3px tall × 1px wide border lines flanking text
+- Layout uses `min-h-screen flex flex-col` with `mt-auto` footer placement
+
+### Verification Results
+- ESLint: Zero errors
+- TypeScript compilation: Success
+- All animations use framer-motion or CSS-only (no external animation libraries)
+- Dark mode: all styles include dark: variants or use CSS custom properties
+- Responsive: all changes use mobile-first Tailwind classes
+- Color palette: exclusively emerald/teal/green, no indigo or blue
+
+---
+Task ID: 3 (Phase 3 - Main Agent Integration)
+Agent: Main Agent
+Task: Bug Fixes, Feature Integration, Final Polish
+
+Work Log:
+- Fixed SSE buffer handling bug: changed from line-by-line parsing with buffer reset to event-based parsing (split on `\n\n`) that properly accumulates partial chunks in buffer between reads
+- Fixed SSE controller closed error: wrapped `controller.enqueue()` in try/catch to gracefully handle client disconnects; added `controllerClosed` flag with early exit checks in search and scrape loops
+- Integrated elapsed time tracker: wired `startTimer()`/`stopTimer()`/`tickTimer()` into page.tsx with `useEffect` interval; live timer badge during processing, final time badge after completion
+- Integrated research settings: added Settings popover to QueryInput with Select dropdowns for max sources and pages to scrape; settings passed through to backend API
+- Integrated copy report button: added `CopyReportButton` component with sonner toast notifications
+- Integrated stats summary card: added `StatsSummaryCard` with 4 color-coded stat cards (Sources, Scraped, Duration, Steps)
+- Updated backend to read settings from `body.settings` with backward-compatible fallback
+
+Stage Summary:
+- All 2 critical bugs fixed (SSE buffer handling, controller closed error)
+- All 4 new features fully integrated and wired up
+- Zero lint errors, successful compilation
+- Dev server running stable
+
+## Current Project Status (Post Phase 3)
+
+### Assessment
+The Web Research Agent Platform is now in a highly polished state with 3 complete development phases. The platform has:
+- A robust 6-step agentic pipeline (Understand → Plan → Explore → Scrape → Validate → Report)
+- Real-time SSE streaming with proper buffer handling and graceful disconnect handling
+- 12 total features including: dark mode, session management, export, timer, settings, copy, stats
+- Comprehensive styling with 11 custom CSS utilities, glassmorphism, mesh gradients, floating particles, and breathing animations
+- Sticky footer, responsive design, accessibility focus-visible styles
+- 7 API endpoints (research SSE, history CRUD, session CRUD, export MD/HTML)
+
+### Completed Modifications (Phase 3)
+1. **Bug Fix: SSE Buffer** — Robust event-based parsing that accumulates partial chunks
+2. **Bug Fix: Controller Closed** — Graceful error handling for client disconnects with early loop exit
+3. **Feature: Elapsed Timer** — Live timer during research, final time badge after completion
+4. **Feature: Research Settings** — Configurable max sources (5-20) and pages to scrape (2-8) via popover
+5. **Feature: Copy Report** — One-click copy with toast notification and animated state
+6. **Feature: Stats Summary** — 4-card dashboard (Sources, Scraped, Duration, Steps) after research completes
+7. **Styling: Header** — Gradient border-bottom, animated logo glow, ping animation on processing badge
+8. **Styling: Empty State** — Mesh gradient background, floating particles, gradient borders on hover
+9. **Styling: Agent Steps** — Gradient connector lines, status glows, breathing ring animation, step numbers
+10. **Styling: Results Panel** — Polished tabs with emerald active state, left accent borders, entrance animations
+11. **Styling: History Panel** — Slide-in left borders, time-grouped headers (Today/Yesterday/This Week/Older), polished search
+12. **Styling: Query Input** — Softer focus glow, character count, gradient submit button, settings popover
+13. **Styling: Footer** — Sticky minimal footer with branding and version badge
+14. **Styling: Global CSS** — 11 new utilities (smooth scroll, emerald selection, focus-visible, tooltip, gradient-border, noise, mesh-gradient, particles, breathing-ring, progress-gradient, card-enter)
+
+### Verification Results
+- ESLint: Zero errors
+- TypeScript compilation: Success
+- Dev server: Compiles in ~130ms, all routes functional
+- No console errors (previous ERR_INVALID_STATE fixed)
+
+### Files Modified (Phase 3)
+- `src/app/page.tsx` — SSE fix, timer integration, settings pass-through, header styling, footer
+- `src/app/api/agent/research/route.ts` — Controller closed fix, settings integration, early exit
+- `src/lib/store.ts` — Timer state, settings state, new actions
+- `src/components/research/query-input.tsx` — Settings popover, char count, focus glow, gradient button
+- `src/components/research/results-panel.tsx` — Stats summary card, copy report button, tab styling, accent borders
+- `src/components/research/history-panel.tsx` — Time groups, slide-in borders, polished search
+- `src/components/research/empty-state.tsx` — Mesh gradient, floating particles, gradient borders
+- `src/components/research/agent-steps.tsx` — Gradient lines, glows, breathing ring, step numbers
+- `src/app/globals.css` — 11 new CSS utilities, enhanced prose styles
+
+## Unresolved Issues & Risks
+
+1. **Favicon Loading** (Low): Google's favicon service may be blocked by CSP/ad blockers. Consider self-hosting fallback.
+2. **Session Resumption** (Low): AgentStep upsert uses `${sessionId}-${stepType}` as composite key — steps update in place.
+3. **Export HTML Quality** (Low): Uses regex-based Markdown-to-HTML. Consider proper parser for production.
+4. **No Authentication** (Medium): All sessions visible to all users. NextAuth.js is installed for future integration.
+5. **No Rate Limiting** (Medium): API endpoints have no rate limiting. Add for multi-user deployment.
+
+### Recommended Next Steps (Priority Order)
+1. **Add user authentication** — Integrate NextAuth.js (already installed) with session management
+2. **Add report templates** — Executive summary, detailed, academic formats
+3. **Add research comparison** — Compare results from multiple queries side-by-side
+4. **Add result quality scoring** — Use the existing `qualityScore` field with actual scoring logic
+5. **Add WebSocket support** — Real-time collaboration for multi-user sessions
+6. **Improve HTML export** — Use a proper Markdown-to-HTML library
+7. **Add rate limiting** — Protect API endpoints for production deployment

@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Menu, X, Sparkles, PanelLeftClose, PanelLeft, RotateCcw } from 'lucide-react';
+import { Menu, X, Sparkles, PanelLeftClose, PanelLeft, RotateCcw, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { QueryInput } from '@/components/research/query-input';
 import { AgentSteps } from '@/components/research/agent-steps';
@@ -26,6 +26,11 @@ export default function Home() {
     setReport,
     setQuery,
     resetSession,
+    startTimer,
+    tickTimer,
+    stopTimer,
+    elapsedSeconds,
+    startTime,
   } = store;
 
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
@@ -61,6 +66,7 @@ export default function Home() {
       resetSession();
       setQuery(query);
       setProcessing(true);
+      startTimer();
 
       const abort = new AbortController();
       abortRef.current = abort;
@@ -69,7 +75,7 @@ export default function Home() {
         const response = await fetch('/api/agent/research', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query }),
+          body: JSON.stringify({ query, settings: useResearchStore.getState().settings }),
           signal: abort.signal,
         });
 
@@ -92,20 +98,26 @@ export default function Home() {
 
           buffer += decoder.decode(value, { stream: true });
 
-          // Parse SSE events
-          const lines = buffer.split('\n');
-          buffer = '';
+          // Parse complete SSE events (split on double newline)
+          // Keep incomplete data in buffer for next chunk
+          const parts = buffer.split('\n\n');
+          // The last part may be incomplete
+          buffer = parts.pop() ?? '';
 
-          let currentEvent = '';
-          let currentData = '';
+          for (const part of parts) {
+            const lines = part.split('\n');
+            let currentEvent = '';
+            let currentData = '';
 
-          for (const line of lines) {
-            if (line.startsWith('event: ')) {
-              currentEvent = line.slice(7).trim();
-            } else if (line.startsWith('data: ')) {
-              currentData = line.slice(6);
-            } else if (line === '' && currentEvent && currentData) {
-              // Empty line = end of event
+            for (const line of lines) {
+              if (line.startsWith('event: ')) {
+                currentEvent = line.slice(7).trim();
+              } else if (line.startsWith('data: ')) {
+                currentData = line.slice(6);
+              }
+            }
+
+            if (currentEvent && currentData) {
               try {
                 const data = JSON.parse(currentData);
 
@@ -149,9 +161,6 @@ export default function Home() {
               } catch {
                 // Ignore JSON parse errors for partial events
               }
-
-              currentEvent = '';
-              currentData = '';
             }
           }
         }
@@ -167,6 +176,7 @@ export default function Home() {
           });
         }
       } finally {
+        stopTimer();
         setProcessing(false);
         abortRef.current = null;
         // Refresh history
@@ -284,6 +294,23 @@ export default function Home() {
     fetchHistory();
   }, [setHistory]);
 
+  // Elapsed timer tick
+  useEffect(() => {
+    if (!isProcessing || startTime === null) return;
+    const interval = setInterval(() => {
+      tickTimer();
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isProcessing, startTime, tickTimer]);
+
+  // Format elapsed seconds
+  const formatElapsed = (secs: number) => {
+    if (secs < 60) return `${secs}s`;
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}m ${s}s`;
+  };
+
   // Cleanup abort on unmount
   useEffect(() => {
     return () => {
@@ -292,9 +319,12 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="flex min-h-screen flex-col overflow-hidden bg-background">
       {/* ─── Header ─────────────────────────────────────────────────── */}
-      <header className="flex h-14 shrink-0 items-center justify-between border-b px-4 lg:px-6">
+      <header className="relative flex h-14 shrink-0 items-center justify-between px-4 lg:px-6">
+        {/* Gradient border-bottom (emerald to teal) */}
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500/60 via-teal-400/80 to-emerald-500/60" />
+
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -312,14 +342,32 @@ export default function Home() {
           >
             {sidebarCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </Button>
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
-              <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
+          <div className="flex items-center gap-2.5">
+            {/* Logo with animated glow border */}
+            <motion.div
+              className="relative flex h-9 w-9 items-center justify-center rounded-xl"
+              animate={{
+                boxShadow: [
+                  '0 0 0 0 rgba(16,185,129,0.2), 0 0 0 0 rgba(20,184,166,0.1)',
+                  '0 0 12px 2px rgba(16,185,129,0.25), 0 0 20px 4px rgba(20,184,166,0.1)',
+                  '0 0 0 0 rgba(16,185,129,0.2), 0 0 0 0 rgba(20,184,166,0.1)',
+                ],
+              }}
+              transition={{
+                duration: 4,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+            >
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20" />
+              <div className="relative flex h-full w-full items-center justify-center rounded-xl bg-background/80 backdrop-blur-sm border border-emerald-500/20">
+                <Sparkles className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </motion.div>
             <div>
-              <h1 className="text-sm font-semibold leading-none">Research Agent</h1>
+              <h1 className="text-sm font-semibold leading-none tracking-tight">Research Agent</h1>
               {history.length > 0 && (
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[10px] text-muted-foreground mt-0.5">
                   {history.length} research session{history.length !== 1 ? 's' : ''} completed
                 </p>
               )}
@@ -327,19 +375,41 @@ export default function Home() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Processing badge with pulsing animation + timer */}
           {isProcessing && (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 dark:bg-amber-500/10"
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 shadow-sm shadow-amber-500/10 dark:bg-amber-500/10 dark:shadow-amber-500/5"
             >
               <motion.div
-                className="h-2 w-2 rounded-full bg-amber-500"
-                animate={{ opacity: [1, 0.3, 1] }}
-                transition={{ duration: 1.2, repeat: Infinity }}
-              />
+                className="relative flex h-2 w-2 items-center justify-center"
+              >
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+              </motion.div>
               <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
                 Processing...
+              </span>
+              {elapsedSeconds > 0 && (
+                <span className="flex items-center gap-1 text-[11px] tabular-nums text-amber-600/80 dark:text-amber-400/80">
+                  <Timer className="h-3 w-3" />
+                  {formatElapsed(elapsedSeconds)}
+                </span>
+              )}
+            </motion.div>
+          )}
+          {/* Completed timer badge */}
+          {!isProcessing && hasStartedResearch && elapsedSeconds > 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 shadow-sm dark:bg-emerald-500/10"
+            >
+              <Timer className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-[11px] font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
+                {formatElapsed(elapsedSeconds)}
               </span>
             </motion.div>
           )}
@@ -347,7 +417,7 @@ export default function Home() {
             <Button
               variant="ghost"
               size="sm"
-              className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              className="gap-1.5 text-xs text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all duration-200"
               onClick={() => {
                 abortRef.current?.abort();
                 resetSession();
@@ -438,6 +508,18 @@ export default function Home() {
           </AnimatePresence>
         </main>
       </div>
+
+      {/* ─── Footer ─────────────────────────────────────────────────── */}
+      <footer className="shrink-0 border-t bg-background/80 backdrop-blur-sm">
+        <div className="mx-auto flex h-10 max-w-7xl items-center justify-center gap-2 px-4">
+          <span className="h-3 w-[1px] bg-border" />
+          <span className="text-[11px] text-muted-foreground/60">
+            Powered by AI Research Agent · Built with Next.js
+          </span>
+          <span className="h-3 w-[1px] bg-border" />
+          <span className="text-[10px] text-muted-foreground/40 font-mono">v1.0.0</span>
+        </div>
+      </footer>
     </div>
   );
 }

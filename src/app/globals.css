@@ -116,6 +116,9 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground;
     background-image: radial-gradient(circle, oklch(0.3 0 0 / 0.03) 1px, transparent 1px);
@@ -123,6 +126,27 @@
   }
   .dark body {
     background-image: none;
+  }
+}
+
+/* ─── Selection colors (emerald) ────────────────────────────────────── */
+@layer base {
+  ::selection {
+    background-color: oklch(0.7 0.15 162);
+    color: white;
+  }
+  .dark ::selection {
+    background-color: oklch(0.5 0.18 162);
+    color: white;
+  }
+}
+
+/* ─── Focus-visible styles for accessibility ────────────────────────── */
+@layer base {
+  :focus-visible {
+    outline: 2px solid oklch(0.6 0.18 162);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 }
 
@@ -148,6 +172,135 @@
   }
   .dark .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: oklch(0.35 0 0);
+  }
+}
+
+/* ─── Tooltip style ─────────────────────────────────────────────────── */
+@layer utilities {
+  .tooltip {
+    @apply relative inline-flex items-center;
+  }
+  .tooltip::after {
+    content: attr(data-tooltip);
+    @apply absolute bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap rounded-md bg-foreground px-2.5 py-1.5 text-xs font-medium text-background opacity-0 pointer-events-none transition-all duration-200 translate-y-1;
+    z-index: 50;
+  }
+  .tooltip:hover::after {
+    @apply opacity-100 translate-y-0;
+  }
+}
+
+/* ─── Gradient border utility ──────────────────────────────────────── */
+@layer utilities {
+  .gradient-border {
+    position: relative;
+  }
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, #10b981, #14b8a6);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .gradient-border:hover::before {
+    opacity: 1;
+  }
+}
+
+/* ─── Noise texture overlay ─────────────────────────────────────────── */
+@layer utilities {
+  .noise-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.015;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+    z-index: 0;
+  }
+  .dark .noise-overlay::after {
+    opacity: 0.03;
+  }
+}
+
+/* ─── Mesh gradient background ─────────────────────────────────────── */
+@layer utilities {
+  .mesh-gradient {
+    background:
+      radial-gradient(at 20% 30%, oklch(0.85 0.08 162 / 0.3) 0%, transparent 50%),
+      radial-gradient(at 80% 20%, oklch(0.85 0.06 180 / 0.25) 0%, transparent 50%),
+      radial-gradient(at 50% 70%, oklch(0.88 0.07 155 / 0.2) 0%, transparent 50%),
+      radial-gradient(at 30% 80%, oklch(0.83 0.05 170 / 0.15) 0%, transparent 40%);
+  }
+  .dark .mesh-gradient {
+    background:
+      radial-gradient(at 20% 30%, oklch(0.3 0.06 162 / 0.2) 0%, transparent 50%),
+      radial-gradient(at 80% 20%, oklch(0.3 0.05 180 / 0.15) 0%, transparent 50%),
+      radial-gradient(at 50% 70%, oklch(0.25 0.04 155 / 0.15) 0%, transparent 50%),
+      radial-gradient(at 30% 80%, oklch(0.28 0.04 170 / 0.1) 0%, transparent 40%);
+  }
+}
+
+/* ─── Floating particle animation ──────────────────────────────────── */
+@layer utilities {
+  @keyframes float-particle {
+    0%, 100% {
+      transform: translateY(0px) translateX(0px) scale(1);
+      opacity: 0.4;
+    }
+    25% {
+      transform: translateY(-12px) translateX(4px) scale(1.2);
+      opacity: 0.7;
+    }
+    50% {
+      transform: translateY(-20px) translateX(-3px) scale(0.8);
+      opacity: 0.5;
+    }
+    75% {
+      transform: translateY(-8px) translateX(6px) scale(1.1);
+      opacity: 0.6;
+    }
+  }
+  .floating-particle {
+    animation: float-particle var(--duration, 6s) ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+}
+
+/* ─── Breathing ring animation ─────────────────────────────────────── */
+@layer utilities {
+  @keyframes breathing-ring {
+    0%, 100% {
+      box-shadow: 0 0 0 0 oklch(0.75 0.15 80 / 0.4);
+    }
+    50% {
+      box-shadow: 0 0 0 8px oklch(0.75 0.15 80 / 0);
+    }
+  }
+  .breathing-ring {
+    animation: breathing-ring 2s ease-in-out infinite;
+  }
+}
+
+/* ─── Gradient progress bar ────────────────────────────────────────── */
+@layer utilities {
+  .progress-gradient {
+    background: linear-gradient(90deg, #10b981, #14b8a6, #10b981);
+    background-size: 200% 100%;
+    animation: shimmer-progress 2s linear infinite;
+  }
+  @keyframes shimmer-progress {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
   }
 }
 
@@ -177,17 +330,53 @@
   @apply text-emerald-600 dark:text-emerald-400 underline decoration-emerald-600/30 dark:decoration-emerald-400/30 hover:decoration-emerald-600 dark:hover:decoration-emerald-400 transition-colors;
 }
 .prose blockquote {
-  @apply border-l-2 border-emerald-500/50 pl-4 italic text-muted-foreground;
+  @apply border-l-2 border-emerald-500/50 pl-4 py-1 my-3 rounded-r-md bg-emerald-50/50 dark:bg-emerald-500/5 italic text-muted-foreground;
 }
 .prose code {
-  @apply rounded bg-muted px-1.5 py-0.5 text-sm font-mono;
+  @apply rounded bg-muted px-1.5 py-0.5 text-sm font-mono text-emerald-700 dark:text-emerald-300;
 }
 .prose pre {
-  @apply rounded-lg bg-muted p-4 overflow-x-auto;
+  @apply rounded-lg border border-border/50 bg-muted/80 p-4 overflow-x-auto my-3;
+}
+.prose pre code {
+  @apply bg-transparent p-0 text-muted-foreground;
 }
 .prose strong {
   @apply font-semibold text-foreground;
 }
 .prose hr {
   @apply my-4 border-border/50;
+}
+.prose table {
+  @apply w-full my-4 text-sm;
+}
+.prose thead {
+  @apply border-b-2 border-emerald-500/30;
+}
+.prose thead th {
+  @apply px-3 py-2 text-left font-semibold text-foreground;
+}
+.prose tbody td {
+  @apply px-3 py-2 border-b border-border/30;
+}
+.prose tbody tr:hover {
+  @apply bg-muted/50;
+}
+.prose img {
+  @apply rounded-lg shadow-sm my-3;
+}
+
+/* ─── Card entrance animation ──────────────────────────────────────── */
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.animate-card-enter {
+  animation: card-enter 0.3s ease-out forwards;
 }

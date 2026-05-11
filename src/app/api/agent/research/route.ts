@@ -8,6 +8,8 @@ import ZAI from "z-ai-web-dev-sdk";
 interface ResearchRequest {
   query: string;
   sessionId?: string;
+  maxSources?: number;
+  pagesToScrape?: number;
 }
 
 interface LLMMessage {
@@ -67,6 +69,8 @@ export async function POST(request: Request) {
   }
 
   const { query, sessionId: existingSessionId } = body;
+  const maxSources = body.settings?.maxSources ?? body.maxSources ?? 10;
+  const pagesToScrape = body.settings?.pagesToScrape ?? body.pagesToScrape ?? 5;
 
   if (!query || typeof query !== "string" || query.trim().length === 0) {
     return new Response(
@@ -103,9 +107,20 @@ export async function POST(request: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       const send = (event: string, data: object) => {
-        controller.enqueue(
-          encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
-        );
+        try {
+          controller.enqueue(
+            encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+          );
+        } catch {
+          // Controller already closed — client disconnected. This is expected when user aborts or navigates away.
+        }
+      };
+
+      let controllerClosed = false;
+      const originalClose = controller.close.bind(controller);
+      controller.close = () => {
+        controllerClosed = true;
+        originalClose();
       };
 
       const fail = (err: unknown, msg: string) => {
@@ -326,6 +341,7 @@ Return ONLY a valid JSON array of strings (no markdown fences). Example:
         await saveStep("search", "Explore Web", "running", 3);
 
         for (let i = 0; i < searchQueries.length; i++) {
+          if (controllerClosed) break;
           const q = searchQueries[i];
           send("step_update", {
             stepType: "search",
@@ -336,7 +352,7 @@ Return ONLY a valid JSON array of strings (no markdown fences). Example:
           try {
             const items = await zai.functions.invoke("web_search", {
               query: q,
-              num: 10,
+              num: maxSources,
             });
 
             for (const item of items) {
@@ -395,23 +411,24 @@ Return ONLY a valid JSON array of strings (no markdown fences). Example:
       // ================================================================
       // STEP 4 – SCRAPE top pages
       // ================================================================
-      const pagesToScrape = allSearchResults.slice(0, 5);
+      const pagesToScrapeList = allSearchResults.slice(0, pagesToScrape);
 
-      if (pagesToScrape.length > 0) {
+      if (pagesToScrapeList.length > 0) {
         try {
           send("step_update", {
             stepType: "scrape",
             status: "running",
-            content: `Scraping ${pagesToScrape.length} top pages…`,
+            content: `Scraping ${pagesToScrapeList.length} top pages…`,
           });
           await saveStep("scrape", "Scrape Pages", "running", 4);
 
-          for (let i = 0; i < pagesToScrape.length; i++) {
-            const page = pagesToScrape[i];
+          for (let i = 0; i < pagesToScrapeList.length; i++) {
+            if (controllerClosed) break;
+            const page = pagesToScrapeList[i];
             send("step_update", {
               stepType: "scrape",
               status: "running",
-              content: `Reading: ${page.name ?? page.url} (${i + 1}/${pagesToScrape.length})`,
+              content: `Reading: ${page.name ?? page.url} (${i + 1}/${pagesToScrapeList.length})`,
             });
 
             try {

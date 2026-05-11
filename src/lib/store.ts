@@ -33,6 +33,11 @@ export interface HistoryItem {
   resultsCount: number;
 }
 
+export interface ResearchSettings {
+  maxSources: number;
+  pagesToScrape: number;
+}
+
 export interface ResearchState {
   currentSessionId: string | null;
   query: string;
@@ -42,6 +47,11 @@ export interface ResearchState {
   scrapedResults: ScrapedResult[];
   report: string | null;
   history: HistoryItem[];
+  settings: ResearchSettings;
+
+  // Elapsed timer
+  startTime: number | null;
+  elapsedSeconds: number;
 
   // Actions
   setSessionId: (id: string | null) => void;
@@ -53,6 +63,10 @@ export interface ResearchState {
   setReport: (r: string) => void;
   setHistory: (items: HistoryItem[]) => void;
   resetSession: () => void;
+  setSettings: (settings: ResearchSettings) => void;
+  startTimer: () => void;
+  tickTimer: () => void;
+  stopTimer: () => void;
 }
 
 // ─── Default steps definition ────────────────────────────────────────────────
@@ -77,6 +91,14 @@ export const useResearchStore = create<ResearchState>((set) => ({
   scrapedResults: [],
   report: null,
   history: [],
+  settings: {
+    maxSources: 10,
+    pagesToScrape: 5,
+  },
+
+  // Timer
+  startTime: null,
+  elapsedSeconds: 0,
 
   setSessionId: (id) => set({ currentSessionId: id }),
 
@@ -118,5 +140,32 @@ export const useResearchStore = create<ResearchState>((set) => ({
       searchResults: [],
       scrapedResults: [],
       report: null,
+      startTime: null,
+      elapsedSeconds: 0,
+    }),
+
+  setSettings: (settings) => set({ settings }),
+
+  startTimer: () =>
+    set({
+      startTime: Date.now(),
+      elapsedSeconds: 0,
+    }),
+
+  tickTimer: () =>
+    set((state) => {
+      if (state.startTime === null) return state;
+      return {
+        elapsedSeconds: Math.floor((Date.now() - state.startTime) / 1000),
+      };
+    }),
+
+  stopTimer: () =>
+    set((state) => {
+      if (state.startTime === null) return state;
+      return {
+        elapsedSeconds: Math.floor((Date.now() - state.startTime) / 1000),
+        startTime: null,
+      };
     }),
 }));

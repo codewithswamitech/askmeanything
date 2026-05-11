@@ -94,23 +94,35 @@ function StatusIndicator({ status }: { status: AgentStep['status'] }) {
 
 function StepCard({
   step,
+  index,
   isActive,
   isExpanded,
+  isLast,
   onToggleExpand,
 }: {
   step: AgentStep;
+  index: number;
   isActive: boolean;
   isExpanded: boolean;
+  isLast: boolean;
   onToggleExpand: () => void;
 }) {
   const Icon = STEP_ICONS[step.stepType] || Circle;
   const emoji = STEP_EMOJIS[step.stepType] || '';
 
+  const glowColor = {
+    pending: 'shadow-none',
+    running: 'shadow-[0_0_12px_rgba(245,158,11,0.3)]',
+    completed: 'shadow-[0_0_12px_rgba(16,185,129,0.2)]',
+    failed: 'shadow-[0_0_12px_rgba(239,68,68,0.2)]',
+    skipped: 'shadow-none',
+  }[step.status];
+
   const borderColor = {
-    pending: 'border-transparent',
-    running: 'border-amber-500/50',
-    completed: 'border-emerald-500/50',
-    failed: 'border-red-500/50',
+    pending: 'border-border/40',
+    running: 'border-amber-500/60',
+    completed: 'border-emerald-500/60',
+    failed: 'border-red-500/60',
     skipped: 'border-transparent',
   }[step.status];
 
@@ -158,37 +170,56 @@ function StepCard({
       transition={{ duration: 0.3 }}
       className="flex items-start gap-3"
     >
-      {/* Node */}
+      {/* Vertical connecting line + Node */}
       <div className="relative flex flex-col items-center">
+        {/* Step number badge */}
+        <div className="absolute -top-1 -left-1 z-10 flex h-4 w-4 items-center justify-center">
+          <span className="text-[9px] font-bold text-muted-foreground/50">
+            {index + 1}
+          </span>
+        </div>
+
+        {/* Node with glow and breathing ring */}
         <motion.div
-          animate={{
-            scale: isActive ? [1, 1.1, 1] : 1,
-          }}
-          transition={{
-            duration: 2,
-            repeat: isActive ? Infinity : 0,
-            ease: 'easeInOut',
-          }}
-          className={`flex h-12 w-12 items-center justify-center rounded-xl border-2 ${borderColor} ${bgColor} shadow-sm transition-all duration-300`}
+          animate={
+            isActive
+              ? {
+                  scale: [1, 1.08, 1],
+                  boxShadow: [
+                    '0 0 0 0 rgba(245,158,11,0.3)',
+                    '0 0 0 6px rgba(245,158,11,0)',
+                    '0 0 0 0 rgba(245,158,11,0.3)',
+                  ],
+                }
+              : {}
+          }
+          transition={
+            isActive
+              ? { duration: 2, repeat: Infinity, ease: 'easeInOut' }
+              : { duration: 0.3 }
+          }
+          className={`relative flex h-12 w-12 items-center justify-center rounded-xl border-2 ${borderColor} ${bgColor} shadow-sm transition-all duration-300 ${glowColor}`}
         >
           <span className="text-xl" role="img" aria-label={step.stepLabel}>
             {emoji}
           </span>
         </motion.div>
 
-        {/* Connector line */}
-        <motion.div
-          className="w-0.5 min-h-6 flex-1"
-          style={{
-            backgroundColor:
-              step.status === 'completed'
-                ? 'var(--color-emerald-500, #10b981)'
-                : 'var(--color-border)',
-          }}
-          initial={{ scaleY: 0, originY: 0 }}
-          animate={{ scaleY: 1 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-        />
+        {/* Vertical connecting line between steps */}
+        {!isLast && (
+          <motion.div
+            className="w-0.5 min-h-6 flex-1"
+            style={{
+              background:
+                step.status === 'completed'
+                  ? 'linear-gradient(to bottom, #10b981, rgba(16,185,129,0.2))'
+                  : 'linear-gradient(to bottom, var(--color-border), rgba(0,0,0,0.05))',
+            }}
+            initial={{ scaleY: 0, originY: 0 }}
+            animate={{ scaleY: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          />
+        )}
       </div>
 
       {/* Card */}
@@ -242,6 +273,9 @@ export function AgentSteps() {
   const [expandedStep, setExpandedStep] = React.useState<string | null>(null);
 
   const activeStep = steps.find((s) => s.status === 'running');
+  const completedCount = steps.filter((s) => s.status === 'completed').length;
+  const totalCount = steps.length;
+  const progressPct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   return (
     <motion.div
@@ -258,10 +292,11 @@ export function AgentSteps() {
             className="flex items-center gap-1.5"
           >
             <motion.div
-              className="h-2 w-2 rounded-full bg-amber-500"
-              animate={{ opacity: [1, 0.4, 1] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-            />
+              className="relative flex h-2 w-2 items-center justify-center"
+            >
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+            </motion.div>
             <span className="text-xs text-amber-600 dark:text-amber-400">
               {activeStep.stepLabel}...
             </span>
@@ -275,8 +310,10 @@ export function AgentSteps() {
             <StepCard
               key={step.stepType}
               step={step}
+              index={index}
               isActive={step.status === 'running'}
               isExpanded={expandedStep === step.stepType}
+              isLast={index === steps.length - 1}
               onToggleExpand={() =>
                 setExpandedStep((prev) =>
                   prev === step.stepType ? null : step.stepType
@@ -287,33 +324,32 @@ export function AgentSteps() {
         </AnimatePresence>
       </div>
 
-      {/* Progress summary */}
+      {/* Stylish progress bar with gradient */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3 }}
-        className="mt-4 flex items-center gap-4 rounded-lg border bg-muted/30 px-3 py-2"
+        className="mt-4 flex items-center gap-4 rounded-lg border bg-muted/30 px-3 py-2.5"
       >
         <div className="flex items-center gap-1.5">
           <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
-          <span className="text-xs text-muted-foreground">
-            {steps.filter((s) => s.status === 'completed').length}/{steps.length}
+          <span className="text-xs font-medium text-muted-foreground">
+            {completedCount}/{totalCount}
           </span>
         </div>
-        <div className="h-3 flex-1 overflow-hidden rounded-full bg-muted">
-          <motion.div
-            className="h-full rounded-full bg-emerald-500"
-            initial={{ width: 0 }}
-            animate={{
-              width: `${
-                (steps.filter((s) => s.status === 'completed').length /
-                  steps.length) *
-                100
-              }%`,
-            }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-          />
+        <div className="h-3 flex-1 overflow-hidden rounded-full bg-muted p-[2px]">
+          <div className="relative h-full w-full rounded-full bg-muted">
+            <motion.div
+              className="absolute inset-y-0 left-0 rounded-full progress-gradient"
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPct}%` }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+            />
+          </div>
         </div>
+        <span className="text-[10px] font-medium text-muted-foreground/60 tabular-nums min-w-[32px] text-right">
+          {Math.round(progressPct)}%
+        </span>
       </motion.div>
     </motion.div>
   );

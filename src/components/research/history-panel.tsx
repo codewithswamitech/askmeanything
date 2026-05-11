@@ -12,6 +12,7 @@ import {
   XCircle,
   ArrowRight,
   Trash2,
+  FileSearch,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -52,6 +53,23 @@ function getRelativeTime(dateStr: string): string {
     return date.toLocaleDateString();
   } catch {
     return '';
+  }
+}
+
+function getTimeGroup(dateStr: string): string {
+  try {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayStart = new Date(todayStart.getTime() - 86400000);
+    const weekStart = new Date(todayStart.getTime() - 7 * 86400000);
+
+    if (date >= todayStart) return 'Today';
+    if (date >= yesterdayStart) return 'Yesterday';
+    if (date >= weekStart) return 'This Week';
+    return 'Older';
+  } catch {
+    return 'Older';
   }
 }
 
@@ -116,13 +134,18 @@ function HistoryItemCard({
       transition={{ duration: 0.25 }}
     >
       <Card
-        className={`group cursor-pointer transition-all duration-200 hover:shadow-md ${
+        className={`group relative overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-md ${
           isActive
             ? 'border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-500/5'
-            : 'hover:border-border'
+            : 'hover:border-border/80'
         }`}
         onClick={onClick}
       >
+        {/* Slide-in colored left border on hover */}
+        <div className={`absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-emerald-500 to-teal-500 origin-top transition-transform duration-300 rounded-r ${
+          isActive ? 'scale-y-100' : 'scale-y-0 group-hover:scale-y-100'
+        }`} />
+        
         <CardContent className="p-3">
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm font-medium leading-snug">{truncate(item.query, 50)}</p>
@@ -168,6 +191,19 @@ function HistoryItemCard({
   );
 }
 
+// ─── Group Header ─────────────────────────────────────────────────────────────
+
+function GroupHeader({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 py-2">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-border/50" />
+    </div>
+  );
+}
+
 // ─── History Panel ────────────────────────────────────────────────────────────
 
 export function HistoryPanel() {
@@ -187,6 +223,30 @@ export function HistoryPanel() {
         item.summary?.toLowerCase().includes(q)
     );
   }, [history, filter]);
+
+  // Group history by time period
+  const groupedHistory = React.useMemo(() => {
+    const groups: Array<{ label: string; items: typeof filteredHistory }> = [];
+    const groupOrder = ['Today', 'Yesterday', 'This Week', 'Older'];
+    const groupMap = new Map<string, typeof filteredHistory>();
+
+    for (const item of filteredHistory) {
+      const group = getTimeGroup(item.createdAt);
+      if (!groupMap.has(group)) {
+        groupMap.set(group, []);
+      }
+      groupMap.get(group)!.push(item);
+    }
+
+    for (const label of groupOrder) {
+      const items = groupMap.get(label);
+      if (items && items.length > 0) {
+        groups.push({ label, items });
+      }
+    }
+
+    return groups;
+  }, [filteredHistory]);
 
   const refreshHistory = React.useCallback(async () => {
     try {
@@ -271,7 +331,7 @@ export function HistoryPanel() {
         <h3 className="text-sm font-semibold">History</h3>
         {history.length > 0 && (
           <>
-            <Badge variant="secondary" className="ml-auto text-[10px]">
+            <Badge variant="secondary" className="ml-auto text-[10px] bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
               {history.length}
             </Badge>
             <AlertDialog>
@@ -279,7 +339,7 @@ export function HistoryPanel() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-red-50 dark:hover:bg-red-500/10"
                   disabled={isDeletingAll}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -307,22 +367,22 @@ export function HistoryPanel() {
         )}
       </div>
 
-      {/* Search */}
+      {/* Search with polished focus state */}
       {history.length > 0 && (
         <div className="px-3 pb-2">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
             <Input
               placeholder="Filter history..."
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="h-8 border-none bg-muted/50 pl-8 text-xs shadow-none focus-visible:ring-1"
+              className="h-8 border-none bg-muted/50 pl-8 pr-3 text-xs shadow-none transition-all duration-200 focus-visible:ring-1 focus-visible:ring-emerald-500/30 focus-visible:bg-muted/80"
             />
           </div>
         </div>
       )}
 
-      {/* List */}
+      {/* List with group headers */}
       <ScrollArea className="flex-1 px-3">
         {isLoadingSession && (
           <div className="space-y-2 py-2">
@@ -337,17 +397,20 @@ export function HistoryPanel() {
               key="empty"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col items-center gap-3 py-12 text-center"
+              className="flex flex-col items-center gap-4 py-16 text-center"
             >
-              <div className="rounded-full bg-muted p-3">
-                <Inbox className="h-6 w-6 text-muted-foreground" />
+              <div className="relative">
+                <div className="rounded-full bg-muted/80 p-3">
+                  <FileSearch className="h-6 w-6 text-muted-foreground/50" />
+                </div>
+                <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-emerald-500/5 to-teal-500/5 blur-xl" />
               </div>
               {history.length === 0 ? (
                 <>
                   <p className="text-xs font-medium text-muted-foreground">
                     No research history
                   </p>
-                  <p className="text-[10px] text-muted-foreground/70">
+                  <p className="text-[10px] text-muted-foreground/60 max-w-[180px]">
                     Start a research session to see it here.
                   </p>
                 </>
@@ -356,7 +419,7 @@ export function HistoryPanel() {
                   <p className="text-xs font-medium text-muted-foreground">
                     No matching results
                   </p>
-                  <p className="text-[10px] text-muted-foreground/70">
+                  <p className="text-[10px] text-muted-foreground/60 max-w-[180px]">
                     Try adjusting your filter.
                   </p>
                 </>
@@ -364,15 +427,22 @@ export function HistoryPanel() {
             </motion.div>
           )}
 
-          <div className="space-y-2 pb-3">
-            {filteredHistory.map((item) => (
-              <HistoryItemCard
-                key={item.id}
-                item={item}
-                isActive={currentSessionId === item.id}
-                onClick={() => handleLoadSession(item.id)}
-                onDelete={handleDeleteSingle}
-              />
+          <div className="space-y-1 pb-3">
+            {groupedHistory.map((group) => (
+              <React.Fragment key={group.label}>
+                <GroupHeader label={group.label} />
+                <div className="space-y-2">
+                  {group.items.map((item) => (
+                    <HistoryItemCard
+                      key={item.id}
+                      item={item}
+                      isActive={currentSessionId === item.id}
+                      onClick={() => handleLoadSession(item.id)}
+                      onDelete={handleDeleteSingle}
+                    />
+                  ))}
+                </div>
+              </React.Fragment>
             ))}
           </div>
         </AnimatePresence>
