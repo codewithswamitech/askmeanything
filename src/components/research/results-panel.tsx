@@ -27,6 +27,10 @@ import {
   List,
   ArrowUpDown,
   Highlighter,
+  Star,
+  Maximize2,
+  Minimize2,
+  StickyNote,
 } from 'lucide-react';
 import {
   Select,
@@ -61,6 +65,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { useResearchStore } from '@/lib/store';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Textarea } from '@/components/ui/textarea';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -248,6 +254,38 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+// ─── useAnimatedCounter Hook ──────────────────────────────────────────────────
+
+function useAnimatedCounter(target: number, duration: number = 800) {
+  const [displayValue, setDisplayValue] = React.useState(0);
+
+  React.useEffect(() => {
+    if (target === 0) {
+      setDisplayValue(0);
+      return;
+    }
+    const startTime = performance.now();
+    let animationFrame: number;
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayValue(Math.round(eased * target));
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animate);
+      }
+    };
+
+    animationFrame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [target, duration]);
+
+  return displayValue;
+}
+
 // ─── Sources Tab ──────────────────────────────────────────────────────────────
 
 function SourceSkeletonCard() {
@@ -271,8 +309,11 @@ function SourcesTab() {
   const isProcessing = useResearchStore((s) => s.isProcessing);
   const openedSources = useResearchStore((s) => s.openedSources);
   const markSourceOpened = useResearchStore((s) => s.markSourceOpened);
+  const pinnedSources = useResearchStore((s) => s.pinnedSources);
+  const togglePinSource = useResearchStore((s) => s.togglePinSource);
   const [sourceFilter, setSourceFilter] = React.useState('');
   const [sortOrder, setSortOrder] = React.useState<string>('default');
+  const [showPinnedOnly, setShowPinnedOnly] = React.useState(false);
 
   // Merge unique sources from both search and scraped results
   const allSources = React.useMemo(() => {
@@ -299,9 +340,12 @@ function SourcesTab() {
     return sources;
   }, [searchResults, scrapedResults]);
 
-  // Filter sources by search text
+  // Filter sources by search text and pinned filter
   const filteredSources = React.useMemo(() => {
     let sources = allSources;
+    if (showPinnedOnly) {
+      sources = sources.filter((s) => pinnedSources.has(s.url));
+    }
     if (sourceFilter.trim()) {
       const q = sourceFilter.toLowerCase();
       sources = sources.filter(
@@ -330,7 +374,7 @@ function SourcesTab() {
         break;
     }
     return sorted;
-  }, [allSources, sourceFilter, sortOrder]);
+  }, [allSources, sourceFilter, sortOrder, showPinnedOnly, pinnedSources]);
 
   const hasSources = allSources.length > 0;
   const openedCount = allSources.filter((s) => openedSources.has(s.url)).length;
@@ -412,6 +456,19 @@ function SourcesTab() {
               )}
             </AnimatePresence>
           </div>
+          <Button
+            variant={showPinnedOnly ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setShowPinnedOnly(!showPinnedOnly)}
+            className={`h-8 gap-1.5 text-xs shrink-0 transition-all duration-200 ${
+              showPinnedOnly
+                ? 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600'
+                : 'border-border/60 bg-muted/30 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10'
+            }`}
+          >
+            <Star className={`h-3 w-3 ${showPinnedOnly ? 'fill-current' : ''}`} />
+            Pinned
+          </Button>
           <Select value={sortOrder} onValueChange={setSortOrder}>
             <SelectTrigger className="h-8 w-auto min-w-[130px] border-border/60 bg-muted/30 text-xs shadow-none transition-all duration-200 focus-visible:ring-1 focus-visible:ring-emerald-500/30">
               <ArrowUpDown className="h-3 w-3 text-muted-foreground/60" />
@@ -456,6 +513,7 @@ function SourcesTab() {
       <AnimatePresence mode="popLayout">
         {filteredSources.map((source, idx) => {
           const isOpened = openedSources.has(source.url);
+          const isPinned = pinnedSources.has(source.url);
           return (
             <motion.div
               key={source.url}
@@ -513,6 +571,23 @@ function SourcesTab() {
                             <SourceCategoryBadge url={source.url} />
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
+                            <motion.button
+                              initial={false}
+                              whileTap={{ scale: 0.8 }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                togglePinSource(source.url);
+                              }}
+                              className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors duration-150 ${
+                                isPinned
+                                  ? 'text-amber-500 bg-amber-50 dark:bg-amber-500/15'
+                                  : 'text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10'
+                              }`}
+                              title={isPinned ? 'Unpin source' : 'Pin source'}
+                            >
+                              <Star className={`h-3 w-3 ${isPinned ? 'fill-current' : ''}`} />
+                            </motion.button>
                             {isOpened && (
                               <motion.div
                                 initial={{ scale: 0 }}
@@ -804,6 +879,8 @@ function ReportTab() {
   const isProcessing = useResearchStore((s) => s.isProcessing);
   const currentSessionId = useResearchStore((s) => s.currentSessionId);
   const steps = useResearchStore((s) => s.steps);
+  const isFullscreenReport = useResearchStore((s) => s.isFullscreenReport);
+  const setFullscreenReport = useResearchStore((s) => s.setFullscreenReport);
   const reportStep = steps.find((s) => s.stepType === 'report');
   const isReportRunning = reportStep?.status === 'running';
 
@@ -981,7 +1058,18 @@ function ReportTab() {
             {readingTime} min read
           </span>
         </div>
-        <CopyReportButton report={report || ''} />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setFullscreenReport(true)}
+            className="gap-1.5 text-xs border-emerald-500/20 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all duration-200"
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
+            Fullscreen
+          </Button>
+          <CopyReportButton report={report || ''} />
+        </div>
       </div>
 
       {/* Report content with TOC sidebar */}
@@ -1033,6 +1121,54 @@ function ReportTab() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Fullscreen Report Overlay */}
+      <AnimatePresence>
+        {isFullscreenReport && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-0 z-50 bg-background/95 backdrop-blur-md overflow-y-auto"
+          >
+            <div className="max-w-4xl mx-auto px-6 py-8 sm:px-8">
+              {/* Close button */}
+              <div className="sticky top-0 z-10 flex items-center justify-between bg-background/90 backdrop-blur-sm py-3 -mx-6 px-6 mb-6 border-b border-border/50">
+                <span className="text-sm font-medium text-muted-foreground">Report Preview</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFullscreenReport(false)}
+                  className="gap-1.5 text-xs border-border/60 hover:bg-muted/50 transition-all duration-200"
+                >
+                  <Minimize2 className="h-3.5 w-3.5" />
+                  Exit Fullscreen
+                </Button>
+              </div>
+
+              {/* Report title */}
+              {firstHeading && (
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 dark:from-emerald-400 dark:via-teal-400 dark:to-emerald-400 bg-clip-text text-transparent mb-6">
+                  {firstHeading}
+                </h1>
+              )}
+
+              {/* Full report content */}
+              <div className="prose prose-neutral dark:prose-invert max-w-none">
+                <ReactMarkdown
+                  components={{
+                    h2: ({ children, ...props }) => <h2 {...props}>{children}</h2>,
+                    h3: ({ children, ...props }) => <h3 {...props}>{children}</h3>,
+                  }}
+                >
+                  {report || ''}
+                </ReactMarkdown>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -1053,6 +1189,9 @@ function StatsSummaryCard() {
 
   const completedSteps = steps.filter((s) => s.status === 'completed').length;
 
+  const animatedSources = useAnimatedCounter(sourcesCount);
+  const animatedScraped = useAnimatedCounter(scrapedResults.length);
+
   // Format time
   const formatTime = (secs: number) => {
     if (secs < 60) return `${secs}s`;
@@ -1065,7 +1204,7 @@ function StatsSummaryCard() {
     {
       icon: Layers,
       label: 'Sources',
-      value: sourcesCount,
+      value: animatedSources,
       color: 'text-emerald-600 dark:text-emerald-400',
       bg: 'bg-emerald-50 dark:bg-emerald-500/10',
       gradient: 'from-emerald-50 to-emerald-100/50 dark:from-emerald-500/10 dark:to-emerald-500/5',
@@ -1074,7 +1213,7 @@ function StatsSummaryCard() {
     {
       icon: FileText,
       label: 'Scraped',
-      value: scrapedResults.length,
+      value: animatedScraped,
       color: 'text-teal-600 dark:text-teal-400',
       bg: 'bg-teal-50 dark:bg-teal-500/10',
       gradient: 'from-teal-50 to-teal-100/50 dark:from-teal-500/10 dark:to-teal-500/5',
@@ -1105,7 +1244,7 @@ function StatsSummaryCard() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4"
+      className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 overflow-x-auto"
     >
       {stats.map((stat, idx) => (
         <motion.div
@@ -1121,7 +1260,7 @@ function StatsSummaryCard() {
               {stat.label}
             </p>
             <p className={`text-sm font-bold tabular-nums ${stat.color}`}>
-              {stat.value}
+              {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
             </p>
           </div>
         </motion.div>
@@ -1139,6 +1278,11 @@ export function ResultsPanel() {
   const currentSessionId = useResearchStore((s) => s.currentSessionId);
   const isProcessing = useResearchStore((s) => s.isProcessing);
   const openedSources = useResearchStore((s) => s.openedSources);
+  const sessionNotes = useResearchStore((s) => s.sessionNotes);
+  const setSessionNotes = useResearchStore((s) => s.setSessionNotes);
+  const [localNotes, setLocalNotes] = React.useState('');
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchedNotesRef = React.useRef(false);
 
   const sourcesCount = new Set([
     ...searchResults.map((r) => r.url),
@@ -1160,13 +1304,80 @@ export function ResultsPanel() {
     window.open(`/api/agent/session/${currentSessionId}/export?format=${format}`, '_blank');
   };
 
+  // Fetch session notes on mount if session exists
+  React.useEffect(() => {
+    if (currentSessionId && currentSessionId !== 'active' && !fetchedNotesRef.current && sessionNotes === '') {
+      fetchedNotesRef.current = true;
+      fetch(`/api/agent/session/${currentSessionId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.session?.notes) {
+            setSessionNotes(data.session.notes);
+            setLocalNotes(data.session.notes);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [currentSessionId, sessionNotes, setSessionNotes]);
+
+  const handleNotesChange = (value: string) => {
+    setLocalNotes(value);
+    setSessionNotes(value);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (currentSessionId && currentSessionId !== 'active') {
+        fetch(`/api/agent/session/${currentSessionId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notes: value }),
+        }).catch(() => {});
+      }
+    }, 500);
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.2 }}
     >
-      {/* Stats summary card when research completed */}
+      <div className="glass-panel rounded-2xl p-4">
+      <div className="flex items-center justify-end mb-3">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="relative gap-1.5 text-xs text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all duration-200"
+            >
+              <StickyNote className="h-3.5 w-3.5" />
+              Notes
+              {(sessionNotes || localNotes) && (
+                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-500" />
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-0" align="end">
+            <div className="p-3 border-b border-border/50">
+              <h3 className="text-sm font-medium">Session Notes</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Auto-saved with your research session</p>
+            </div>
+            <Textarea
+              placeholder="Add your notes here..."
+              value={localNotes}
+              onChange={(e) => handleNotesChange(e.target.value)}
+              className="min-h-[120px] max-h-[240px] resize-none border-0 rounded-none text-sm focus-visible:ring-0"
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
       {hasReport && <StatsSummaryCard />}
 
       <Tabs defaultValue="sources" className="w-full">
@@ -1280,6 +1491,7 @@ export function ResultsPanel() {
           </TabsContent>
         </div>
       </Tabs>
+      </div>
     </motion.div>
   );
 }

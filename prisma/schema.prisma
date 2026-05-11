@@ -13,6 +13,7 @@ model ResearchSession {
   status      String   @default("pending") // pending, running, completed, failed
   summary     String?
   report      String?
+  notes       String?  // User notes/annotations
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   steps       AgentStep[]

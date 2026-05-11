@@ -237,7 +237,7 @@ export function QueryInput() {
           </AnimatePresence>
 
           {/* Footer with hint, char count, and submit */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
             <div className="flex items-center gap-3">
               <AnimatePresence mode="wait">
                 {isProcessing ? (
@@ -272,7 +272,7 @@ export function QueryInput() {
               </AnimatePresence>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
               {/* Character count */}
               {charCount > 0 && (
                 <motion.span
@@ -288,12 +288,12 @@ export function QueryInput() {
                 </motion.span>
               )}
 
-              <motion.div whileTap={{ scale: 0.95 }}>
+              <motion.div whileTap={{ scale: 0.95 }} className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   onClick={handleSubmit}
                   disabled={!canSubmit}
-                  className={`gap-2 rounded-xl px-6 shadow-md transition-all duration-200 disabled:opacity-30 disabled:shadow-none ${
+                  className={`gap-2 rounded-xl px-6 shadow-md transition-all duration-200 disabled:opacity-30 disabled:shadow-none w-full sm:w-auto ${
                     canSubmit
                       ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 hover:shadow-lg hover:shadow-emerald-500/20 text-white'
                       : ''

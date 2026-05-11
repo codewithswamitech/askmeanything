@@ -62,9 +62,10 @@ function StatusIndicator({ status }: { status: AgentStep['status'] }) {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-          className="flex h-5 w-5 items-center justify-center"
+          className="relative flex h-5 w-5 items-center justify-center"
         >
-          <CheckCircle className="h-5 w-5 text-emerald-500" />
+          <span className="step-complete-ripple" />
+          <CheckCircle className="relative h-5 w-5 text-emerald-500" />
         </motion.div>
       );
     case 'failed':
@@ -295,7 +296,7 @@ function StepCard({
           className={`relative flex h-12 w-12 items-center justify-center rounded-xl border-2 ${borderColor} ${bgColor} shadow-sm transition-all duration-300 ${glowColor}`}
         >
           <span
-            className={`text-xl ${justStarted ? 'step-start-anim' : ''}`}
+            className={`text-lg sm:text-xl ${justStarted ? 'step-start-anim' : ''}`}
             role="img"
             aria-label={step.stepLabel}
           >
@@ -321,7 +322,7 @@ function StepCard({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <CardContent className="p-3">
+        <CardContent className="p-2.5 sm:p-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Icon className="h-4 w-4 text-muted-foreground" />
@@ -409,6 +410,7 @@ export function AgentSteps() {
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.5, delay: 0.1 }}
     >
+      <div className="glass-panel rounded-2xl p-4">
       <div className="mb-4 flex items-center gap-2">
         <h3 className="text-sm font-semibold text-foreground">Agent Pipeline</h3>
         {activeStep && (
@@ -477,6 +479,7 @@ export function AgentSteps() {
           {Math.round(progressPct)}%
         </span>
       </motion.div>
+      </div>
     </motion.div>
   );
 }

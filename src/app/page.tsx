@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Menu, X, Sparkles, PanelLeftClose, PanelLeft, RotateCcw, Timer, BookOpen } from 'lucide-react';
+import { Menu, X, Sparkles, PanelLeftClose, PanelLeft, RotateCcw, Timer, BookOpen, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { QueryInput } from '@/components/research/query-input';
 import { AgentSteps } from '@/components/research/agent-steps';
@@ -12,6 +12,79 @@ import { EmptyState } from '@/components/research/empty-state';
 import { ThemeToggle } from '@/components/research/theme-toggle';
 import { useResearchStore } from '@/lib/store';
 import { toast } from 'sonner';
+
+// ─── Celebration Overlay ────────────────────────────────────────────────────────
+
+const CONFETTI_COLORS = ['#10b981', '#14b8a6', '#f59e0b', '#f43f5e', '#8b5cf6'];
+const CONFETTI_PARTICLES = Array.from({ length: 35 }, (_, i) => ({
+  id: i,
+  x: Math.random() * 100,
+  y: -(Math.random() * 20 + 5),
+  size: Math.random() * 8 + 4,
+  delay: Math.random() * 0.8,
+  duration: Math.random() * 1.5 + 2,
+  color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+  drift: (Math.random() - 0.5) * 80,
+}));
+
+function CelebrationOverlay() {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="fixed inset-0 z-[100] pointer-events-none flex items-center justify-center"
+    >
+      {/* Confetti particles */}
+      {CONFETTI_PARTICLES.map((p) => (
+        <motion.div
+          key={p.id}
+          initial={{
+            opacity: 1,
+            x: `${p.x}vw`,
+            y: `${p.y}vh`,
+            scale: 0,
+          }}
+          animate={{
+            opacity: [1, 1, 0],
+            y: '110vh',
+            x: `${p.x + p.drift}vw`,
+            scale: [0, 1, 0.5],
+            rotate: [0, (Math.random() - 0.5) * 720],
+          }}
+          transition={{
+            duration: p.duration,
+            delay: p.delay,
+            ease: 'easeIn',
+          }}
+          className="absolute rounded-full"
+          style={{
+            width: p.size,
+            height: p.size,
+            backgroundColor: p.color,
+          }}
+        />
+      ))}
+      {/* Center checkmark */}
+      <motion.div
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: [0, 1.2, 1], opacity: [0, 1, 1] }}
+        exit={{ scale: 0.5, opacity: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 shadow-2xl shadow-emerald-500/40"
+      >
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
+        >
+          <Check className="h-10 w-10 text-white" strokeWidth={3} />
+        </motion.div>
+      </motion.div>
+    </motion.div>
+  );
+}
 
 export default function Home() {
   const store = useResearchStore();
@@ -33,6 +106,8 @@ export default function Home() {
     setElapsedSeconds,
     elapsedSeconds,
     startTime,
+    showCelebration,
+    setShowCelebration,
   } = store;
 
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
@@ -169,6 +244,8 @@ export default function Home() {
                       setSessionId(data.sessionId);
                     }
                     if (data.status === 'completed') {
+                      setShowCelebration(true);
+                      setTimeout(() => setShowCelebration(false), 3000);
                       toast.success('Research Complete!', {
                         description: `Your report on '${query}' is ready to view.`,
                         action: {
@@ -227,6 +304,7 @@ export default function Home() {
       addScrapedResult,
       setReport,
       setHistory,
+      setShowCelebration,
     ]
   );
 
@@ -529,6 +607,11 @@ export default function Home() {
         </div>
       </header>
 
+      {/* ─── Celebration Overlay ─────────────────────────────────── */}
+      <AnimatePresence>
+        {showCelebration && <CelebrationOverlay />}
+      </AnimatePresence>
+
       {/* ─── Main Layout ────────────────────────────────────────────── */}
       <div className="relative flex flex-1 overflow-hidden">
         {/* ─── Sidebar (History) ────────────────────────────────── */}
@@ -586,7 +669,15 @@ export default function Home() {
                 className="flex flex-col"
               >
                 {/* Muted mesh gradient background for research view */}
-                <div className="pointer-events-none absolute inset-0 -z-10 mesh-gradient-muted" />
+                <div className="pointer-events-none absolute inset-0 -z-10 mesh-gradient-muted">
+                  {/* Animated gradient orbs */}
+                  <div className="animated-orbs">
+                    <div className="orb-1" />
+                    <div className="orb-2" />
+                    <div className="orb-3" />
+                    <div className="orb-4" />
+                  </div>
+                </div>
 
                 {/* Query input (sticky top) */}
                 <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-lg px-4 py-3 sm:px-6 lg:px-8">

@@ -30,6 +30,7 @@ export interface HistoryItem {
   query: string;
   status: string;
   summary: string | null;
+  notes: string | null;
   createdAt: string;
   stepsCount: number;
   resultsCount: number;
@@ -58,6 +59,18 @@ export interface ResearchState {
   // Opened sources tracker
   openedSources: Set<string>;
 
+  // Pinned/bookmarked sources
+  pinnedSources: Set<string>;
+
+  // Session notes
+  sessionNotes: string;
+
+  // Fullscreen report mode
+  isFullscreenReport: boolean;
+
+  // Celebration state
+  showCelebration: boolean;
+
   // Actions
   setSessionId: (id: string | null) => void;
   setQuery: (q: string) => void;
@@ -74,6 +87,10 @@ export interface ResearchState {
   stopTimer: () => void;
   setElapsedSeconds: (seconds: number) => void;
   markSourceOpened: (url: string) => void;
+  togglePinSource: (url: string) => void;
+  setSessionNotes: (notes: string) => void;
+  setFullscreenReport: (v: boolean) => void;
+  setShowCelebration: (v: boolean) => void;
 }
 
 // ─── Default steps definition ────────────────────────────────────────────────
@@ -109,6 +126,18 @@ export const useResearchStore = create<ResearchState>((set) => ({
 
   // Opened sources
   openedSources: new Set<string>(),
+
+  // Pinned sources
+  pinnedSources: new Set<string>(),
+
+  // Session notes
+  sessionNotes: '',
+
+  // Fullscreen report mode
+  isFullscreenReport: false,
+
+  // Celebration state
+  showCelebration: false,
 
   setSessionId: (id) => set({ currentSessionId: id }),
 
@@ -169,6 +198,10 @@ export const useResearchStore = create<ResearchState>((set) => ({
       startTime: null,
       elapsedSeconds: 0,
       openedSources: new Set<string>(),
+      pinnedSources: new Set<string>(),
+      sessionNotes: '',
+      isFullscreenReport: false,
+      showCelebration: false,
     }),
 
   setSettings: (settings) => set({ settings }),
@@ -208,4 +241,21 @@ export const useResearchStore = create<ResearchState>((set) => ({
       next.add(url);
       return { openedSources: next };
     }),
+
+  togglePinSource: (url) =>
+    set((state) => {
+      const next = new Set(state.pinnedSources);
+      if (next.has(url)) {
+        next.delete(url);
+      } else {
+        next.add(url);
+      }
+      return { pinnedSources: next };
+    }),
+
+  setSessionNotes: (notes) => set({ sessionNotes: notes }),
+
+  setFullscreenReport: (v) => set({ isFullscreenReport: v }),
+
+  setShowCelebration: (v) => set({ showCelebration: v }),
 }));
