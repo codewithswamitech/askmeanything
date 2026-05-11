@@ -12,7 +12,6 @@ import {
   XCircle,
   ArrowRight,
   Trash2,
-  FileSearch,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -399,19 +398,32 @@ export function HistoryPanel() {
               animate={{ opacity: 1 }}
               className="flex flex-col items-center gap-4 py-16 text-center"
             >
-              <div className="relative">
-                <div className="rounded-full bg-muted/80 p-3">
-                  <FileSearch className="h-6 w-6 text-muted-foreground/50" />
-                </div>
-                <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-emerald-500/5 to-teal-500/5 blur-xl" />
+              {/* CSS illustration for empty state */}
+              <div className="relative mb-2">
+                <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" className="opacity-40">
+                  {/* Document shape */}
+                  <rect x="18" y="10" width="44" height="56" rx="4" className="stroke-emerald-500/60" strokeWidth="1.5" fill="currentColor" style={{ color: 'oklch(0.97 0.02 162 / 0.3)' }} />
+                  <rect x="18" y="10" width="44" height="56" rx="4" className="stroke-emerald-500/60 dark:stroke-emerald-400/50" strokeWidth="1.5" fill="none" />
+                  {/* Folded corner */}
+                  <path d="M48 10L62 24" className="stroke-emerald-500/60 dark:stroke-emerald-400/50" strokeWidth="1.5" fill="none" />
+                  <path d="M48 10V24H62" className="stroke-emerald-500/40 dark:stroke-emerald-400/30" strokeWidth="1" fill="none" />
+                  {/* Text lines */}
+                  <rect x="26" y="32" width="20" height="2" rx="1" className="fill-emerald-500/25 dark:fill-emerald-400/20" />
+                  <rect x="26" y="38" width="28" height="2" rx="1" className="fill-emerald-500/20 dark:fill-emerald-400/15" />
+                  <rect x="26" y="44" width="16" height="2" rx="1" className="fill-emerald-500/15 dark:fill-emerald-400/10" />
+                  {/* Search magnifying glass */}
+                  <circle cx="50" cy="56" r="8" className="stroke-emerald-500/50 dark:stroke-emerald-400/40" strokeWidth="1.5" fill="none" />
+                  <line x1="56" y1="62" x2="62" y2="68" className="stroke-emerald-500/50 dark:stroke-emerald-400/40" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                <div className="absolute -inset-6 rounded-full bg-gradient-to-br from-emerald-500/5 to-teal-500/5 blur-xl" />
               </div>
               {history.length === 0 ? (
                 <>
                   <p className="text-xs font-medium text-muted-foreground">
                     No research history
                   </p>
-                  <p className="text-[10px] text-muted-foreground/60 max-w-[180px]">
-                    Start a research session to see it here.
+                  <p className="text-[10px] text-muted-foreground/60 max-w-[180px] leading-relaxed">
+                    Your research history will appear here. Start a query to begin!
                   </p>
                 </>
               ) : (

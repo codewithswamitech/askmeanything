@@ -304,6 +304,21 @@
   }
 }
 
+/* ─── Pulse ring for active research input ───────────────────────────── */
+@layer utilities {
+  @keyframes pulse-ring {
+    0%, 100% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+  .pulse-ring-border {
+    animation: pulse-ring 2s ease-in-out infinite;
+  }
+}
+
 /* ─── Prose overrides for reports ──────────────────────────────────── */
 .prose h1 {
   @apply text-2xl font-bold mt-6 mb-3;
@@ -318,25 +333,57 @@
   @apply my-2 leading-relaxed;
 }
 .prose ul {
-  @apply my-2 space-y-1;
+  @apply my-3 space-y-1.5 pl-1;
 }
 .prose ol {
-  @apply my-2 space-y-1;
+  @apply my-3 space-y-1.5 pl-1;
 }
 .prose li {
   @apply leading-relaxed;
 }
+.prose ul > li::marker {
+  color: #10b981;
+  font-size: 0.5em;
+}
+.dark .prose ul > li::marker {
+  color: #34d399;
+}
+.prose ol > li::marker {
+  color: #10b981;
+  font-weight: 600;
+}
+.dark .prose ol > li::marker {
+  color: #34d399;
+}
 .prose a {
   @apply text-emerald-600 dark:text-emerald-400 underline decoration-emerald-600/30 dark:decoration-emerald-400/30 hover:decoration-emerald-600 dark:hover:decoration-emerald-400 transition-colors;
 }
+.prose a[target="_blank"]::after {
+  content: ' ↗';
+  font-size: 0.7em;
+  vertical-align: super;
+  opacity: 0.6;
+}
+.prose a[target="_blank"]:hover::after {
+  opacity: 1;
+}
 .prose blockquote {
-  @apply border-l-2 border-emerald-500/50 pl-4 py-1 my-3 rounded-r-md bg-emerald-50/50 dark:bg-emerald-500/5 italic text-muted-foreground;
+  @apply border-l-[3px] pl-5 py-3 pr-4 my-4 rounded-r-lg italic text-muted-foreground;
+  border-image: linear-gradient(to bottom, #10b981, #14b8a6, transparent) 1;
+  background: linear-gradient(135deg, oklch(0.97 0.02 162 / 0.4), oklch(0.97 0.01 170 / 0.2));
+}
+.dark .prose blockquote {
+  background: linear-gradient(135deg, oklch(0.25 0.03 162 / 0.3), oklch(0.25 0.02 170 / 0.15));
 }
 .prose code {
   @apply rounded bg-muted px-1.5 py-0.5 text-sm font-mono text-emerald-700 dark:text-emerald-300;
 }
 .prose pre {
-  @apply rounded-lg border border-border/50 bg-muted/80 p-4 overflow-x-auto my-3;
+  @apply rounded-xl border border-border/50 bg-muted/80 p-4 overflow-x-auto my-4 relative;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.dark .prose pre {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
 }
 .prose pre code {
   @apply bg-transparent p-0 text-muted-foreground;
@@ -348,22 +395,57 @@
   @apply my-4 border-border/50;
 }
 .prose table {
-  @apply w-full my-4 text-sm;
+  @apply w-full my-4 text-sm rounded-lg overflow-hidden;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 .prose thead {
   @apply border-b-2 border-emerald-500/30;
 }
 .prose thead th {
-  @apply px-3 py-2 text-left font-semibold text-foreground;
+  @apply px-4 py-2.5 text-left font-semibold text-foreground bg-muted/30;
+}
+.prose thead th:first-child {
+  @apply rounded-tl-lg;
+}
+.prose thead th:last-child {
+  @apply rounded-tr-lg;
 }
 .prose tbody td {
-  @apply px-3 py-2 border-b border-border/30;
+  @apply px-4 py-2.5 border-b border-border/20;
+}
+.prose tbody tr:nth-child(even) {
+  @apply bg-muted/20;
+}
+.prose tbody tr:last-child td {
+  @apply border-b-0;
+}
+.prose tbody tr:last-child td:first-child {
+  @apply rounded-bl-lg;
+}
+.prose tbody tr:last-child td:last-child {
+  @apply rounded-br-lg;
 }
 .prose tbody tr:hover {
-  @apply bg-muted/50;
+  @apply bg-emerald-50/50;
+}
+.dark .prose tbody tr:hover {
+  @apply bg-emerald-500/5;
 }
 .prose img {
-  @apply rounded-lg shadow-sm my-3;
+  @apply rounded-xl shadow-md my-4;
+}
+
+/* ─── Badge hover transition ──────────────────────────────────────── */
+.badge,
+[class*="badge"],
+[data-slot="badge"] {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.badge:hover,
+[class*="badge"]:hover,
+[data-slot="badge"]:hover {
+  transform: scale(1.02);
 }
 
 /* ─── Card entrance animation ──────────────────────────────────────── */

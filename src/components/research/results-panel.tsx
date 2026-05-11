@@ -19,7 +19,11 @@ import {
   Timer,
   CheckCircle,
   Layers,
+  Search,
+  X,
+  Clock,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -70,6 +74,104 @@ function getFaviconUrl(url: string): string {
   }
 }
 
+// ─── Source Category Detection ─────────────────────────────────────────────────
+
+type SourceCategory = 'News' | 'Wiki' | 'Gov' | 'Edu' | 'Social' | 'Web';
+
+interface CategoryConfig {
+  label: string;
+  className: string;
+}
+
+const CATEGORY_STYLES: Record<SourceCategory, CategoryConfig> = {
+  News: {
+    label: 'News',
+    className: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400 border-amber-200 dark:border-amber-500/20',
+  },
+  Wiki: {
+    label: 'Wiki',
+    className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20',
+  },
+  Gov: {
+    label: 'Gov',
+    className: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400 border-blue-200 dark:border-blue-500/20',
+  },
+  Edu: {
+    label: 'Edu',
+    className: 'bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-400 border-purple-200 dark:border-purple-500/20',
+  },
+  Social: {
+    label: 'Social',
+    className: 'bg-pink-100 text-pink-700 dark:bg-pink-500/15 dark:text-pink-400 border-pink-200 dark:border-pink-500/20',
+  },
+  Web: {
+    label: 'Web',
+    className: 'bg-gray-100 text-gray-600 dark:bg-gray-500/10 dark:text-gray-400 border-gray-200 dark:border-gray-500/20',
+  },
+};
+
+function getSourceCategory(url: string): SourceCategory {
+  try {
+    const { hostname } = new URL(url);
+    const domain = hostname.toLowerCase();
+
+    // Wiki
+    if (domain.includes('wikipedia.org') || domain.includes('wiki')) return 'Wiki';
+
+    // News
+    if (
+      domain.includes('news') ||
+      domain.includes('bbc.') ||
+      domain.includes('cnn.') ||
+      domain.includes('reuters.com') ||
+      domain.includes('nytimes.com') ||
+      domain.includes('washingtonpost.com') ||
+      domain.includes('theguardian.com') ||
+      domain.includes('apnews.com') ||
+      domain.includes('cnbc.com') ||
+      domain.includes('bloomberg.com') ||
+      domain.includes('techcrunch.com') ||
+      domain.includes('theverge.com') ||
+      domain.includes('arstechnica.com') ||
+      domain.includes('wired.com')
+    ) return 'News';
+
+    // Gov
+    if (domain.endsWith('.gov') || domain.includes('government')) return 'Gov';
+
+    // Edu
+    if (domain.endsWith('.edu') || domain.includes('university') || domain.includes('academic')) return 'Edu';
+
+    // Social
+    if (
+      domain.includes('twitter.com') ||
+      domain.includes('x.com') ||
+      domain.includes('reddit.com') ||
+      domain.includes('facebook.com') ||
+      domain.includes('linkedin.com') ||
+      domain.includes('instagram.com') ||
+      domain.includes('tiktok.com') ||
+      domain.includes('youtube.com') ||
+      domain.includes('medium.com')
+    ) return 'Social';
+
+    return 'Web';
+  } catch {
+    return 'Web';
+  }
+}
+
+function SourceCategoryBadge({ url }: { url: string }) {
+  const category = getSourceCategory(url);
+  const config = CATEGORY_STYLES[category];
+
+  return (
+    <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-semibold leading-none ${config.className}`}>
+      {config.label}
+    </span>
+  );
+}
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = React.useState(false);
 
@@ -100,9 +202,26 @@ function CopyButton({ text }: { text: string }) {
 
 // ─── Sources Tab ──────────────────────────────────────────────────────────────
 
+function SourceSkeletonCard() {
+  return (
+    <div className="rounded-xl border border-border/50 p-4">
+      <div className="flex items-start gap-3">
+        <Skeleton className="h-8 w-8 shrink-0 rounded-md" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-3.5 w-3/4" />
+          <Skeleton className="h-3 w-1/2" />
+          <Skeleton className="h-3 w-full" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SourcesTab() {
   const searchResults = useResearchStore((s) => s.searchResults);
   const scrapedResults = useResearchStore((s) => s.scrapedResults);
+  const isProcessing = useResearchStore((s) => s.isProcessing);
+  const [sourceFilter, setSourceFilter] = React.useState('');
 
   // Merge unique sources from both search and scraped results
   const allSources = React.useMemo(() => {
@@ -129,7 +248,43 @@ function SourcesTab() {
     return sources;
   }, [searchResults, scrapedResults]);
 
-  if (allSources.length === 0) {
+  // Filter sources by search text
+  const filteredSources = React.useMemo(() => {
+    if (!sourceFilter.trim()) return allSources;
+    const q = sourceFilter.toLowerCase();
+    return allSources.filter(
+      (s) =>
+        s.title.toLowerCase().includes(q) ||
+        s.url.toLowerCase().includes(q) ||
+        (s.snippet && s.snippet.toLowerCase().includes(q))
+    );
+  }, [allSources, sourceFilter]);
+
+  const hasSources = allSources.length > 0;
+
+  // Show loading skeletons when processing and no sources yet
+  if (!hasSources && isProcessing) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="grid gap-3 sm:grid-cols-2"
+      >
+        {[0, 1, 2, 3].map((idx) => (
+          <motion.div
+            key={`skeleton-${idx}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: idx * 0.1 }}
+          >
+            <SourceSkeletonCard />
+          </motion.div>
+        ))}
+      </motion.div>
+    );
+  }
+
+  if (!hasSources) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
@@ -156,10 +311,50 @@ function SourcesTab() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="grid gap-3 sm:grid-cols-2"
+      className="space-y-3"
     >
+      {/* Search input for filtering sources */}
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+          <Input
+            placeholder="Search sources..."
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            className="h-8 border-border/60 bg-muted/30 pl-8 pr-8 text-xs shadow-none transition-all duration-200 focus-visible:ring-1 focus-visible:ring-emerald-500/30 focus-visible:bg-muted/50"
+          />
+          <AnimatePresence>
+            {sourceFilter.length > 0 && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.15 }}
+                onClick={() => setSourceFilter('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted transition-colors"
+              >
+                <X className="h-3 w-3" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
+        {sourceFilter.trim() && (
+          <motion.p
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="text-[11px] text-muted-foreground/60"
+          >
+            <span className="font-medium text-muted-foreground/80">{filteredSources.length}</span> of{' '}
+            <span className="font-medium text-muted-foreground/80">{allSources.length}</span> sources match
+          </motion.p>
+        )}
+      </div>
+
+      {/* Sources grid */}
+      <div className="grid gap-3 sm:grid-cols-2">
       <AnimatePresence mode="popLayout">
-        {allSources.map((source, idx) => (
+        {filteredSources.map((source, idx) => (
           <motion.div
             key={source.url}
             initial={{ opacity: 0, scale: 0.95, y: 12 }}
@@ -173,7 +368,7 @@ function SourcesTab() {
               rel="noopener noreferrer"
               className="group block"
             >
-              <Card className="relative h-full overflow-hidden transition-all duration-200 hover:shadow-md hover:border-border/80">
+              <Card className="relative h-full overflow-hidden transition-all duration-200 hover:shadow-md hover:border-border/80 hover:scale-[1.01]">
                 {/* Left accent border on hover */}
                 <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-emerald-500 to-teal-500 scale-y-0 origin-top transition-transform duration-300 group-hover:scale-y-100 rounded-r" />
                 <CardContent className="p-4">
@@ -192,10 +387,13 @@ function SourcesTab() {
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className="line-clamp-2 text-sm font-medium leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                          {source.title}
-                        </h4>
-                        <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:text-emerald-500" />
+                        <div className="flex items-start gap-1.5 min-w-0">
+                          <h4 className="line-clamp-2 text-sm font-medium leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                            {source.title}
+                          </h4>
+                          <SourceCategoryBadge url={source.url} />
+                        </div>
+                        <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 translate-x-0.5 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-emerald-500" />
                       </div>
 
                       <p className="mt-1 truncate text-xs text-muted-foreground">
@@ -221,6 +419,7 @@ function SourcesTab() {
           </motion.div>
         ))}
       </AnimatePresence>
+      </div>
     </motion.div>
   );
 }
@@ -349,6 +548,33 @@ function ReportTab() {
   const reportStep = steps.find((s) => s.stepType === 'report');
   const isReportRunning = reportStep?.status === 'running';
 
+  // Word count and reading time (must be before any early return)
+  const wordCount = React.useMemo(() => {
+    if (!report) return 0;
+    return report.split(/\s+/).filter((w) => w.length > 0).length;
+  }, [report]);
+
+  const readingTime = React.useMemo(() => {
+    return Math.max(1, Math.ceil(wordCount / 200));
+  }, [wordCount]);
+
+  // Scroll progress indicator
+  const [scrollProgress, setScrollProgress] = React.useState(0);
+  const reportRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const el = reportRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const scrollTop = el.scrollTop;
+      const scrollHeight = el.scrollHeight - el.clientHeight;
+      const pct = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
+      setScrollProgress(Math.min(pct, 1));
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const handleExport = (format: 'md' | 'html') => {
     if (!currentSessionId) return;
     window.open(`/api/agent/session/${currentSessionId}/export?format=${format}`, '_blank');
@@ -407,12 +633,32 @@ function ReportTab() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
+      className="relative"
     >
-      {/* Copy report button */}
-      <div className="mb-4 flex justify-end">
+      {/* Scroll progress indicator */}
+      <div className="absolute top-0 left-0 right-0 z-10 h-[2px] overflow-hidden rounded-full">
+        <motion.div
+          className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500"
+          style={{ width: `${scrollProgress * 100}%` }}
+          transition={{ duration: 0.1 }}
+        />
+      </div>
+
+      {/* Word count & reading time + Copy report button */}
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
+          <span className="inline-flex items-center gap-1 rounded-full bg-muted/50 px-2.5 py-1 text-[11px] font-medium tabular-nums">
+            {wordCount.toLocaleString()} words
+          </span>
+          <span className="text-muted-foreground/30">·</span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-muted/50 px-2.5 py-1 text-[11px] font-medium tabular-nums">
+            <Clock className="h-3 w-3" />
+            {readingTime} min read
+          </span>
+        </div>
         <CopyReportButton report={report || ''} />
       </div>
-      <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none">
+      <div ref={reportRef} className="prose prose-sm prose-neutral dark:prose-invert max-w-none max-h-[560px] overflow-y-auto scrollbar-thin pr-1">
         <ReactMarkdown>{report || ''}</ReactMarkdown>
       </div>
     </motion.div>
@@ -610,17 +856,35 @@ export function ResultsPanel() {
           )}
         </div>
 
-        <ScrollArea className="mt-4 max-h-[600px]">
+        <div className="mt-4 max-h-[600px] overflow-y-auto scrollbar-thin">
           <TabsContent value="sources" className="mt-0">
-            <SourcesTab />
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <SourcesTab />
+            </motion.div>
           </TabsContent>
           <TabsContent value="scraped" className="mt-0">
-            <ScrapedContentTab />
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ScrapedContentTab />
+            </motion.div>
           </TabsContent>
           <TabsContent value="report" className="mt-0">
-            <ReportTab />
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ReportTab />
+            </motion.div>
           </TabsContent>
-        </ScrollArea>
+        </div>
       </Tabs>
     </motion.div>
   );

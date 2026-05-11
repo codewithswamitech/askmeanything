@@ -8,6 +8,8 @@ export interface AgentStep {
   status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
   content: string | null;
   order: number;
+  startedAt: number | null;
+  completedAt: number | null;
 }
 
 export interface SearchResult {
@@ -72,12 +74,12 @@ export interface ResearchState {
 // ─── Default steps definition ────────────────────────────────────────────────
 
 const DEFAULT_STEPS: AgentStep[] = [
-  { stepType: 'understand', stepLabel: 'Understand', status: 'pending', content: null, order: 0 },
-  { stepType: 'plan', stepLabel: 'Plan', status: 'pending', content: null, order: 1 },
-  { stepType: 'explore', stepLabel: 'Explore', status: 'pending', content: null, order: 2 },
-  { stepType: 'scrape', stepLabel: 'Scrape', status: 'pending', content: null, order: 3 },
-  { stepType: 'validate', stepLabel: 'Validate', status: 'pending', content: null, order: 4 },
-  { stepType: 'report', stepLabel: 'Report', status: 'pending', content: null, order: 5 },
+  { stepType: 'understand', stepLabel: 'Understand', status: 'pending', content: null, order: 0, startedAt: null, completedAt: null },
+  { stepType: 'plan', stepLabel: 'Plan', status: 'pending', content: null, order: 1, startedAt: null, completedAt: null },
+  { stepType: 'explore', stepLabel: 'Explore', status: 'pending', content: null, order: 2, startedAt: null, completedAt: null },
+  { stepType: 'scrape', stepLabel: 'Scrape', status: 'pending', content: null, order: 3, startedAt: null, completedAt: null },
+  { stepType: 'validate', stepLabel: 'Validate', status: 'pending', content: null, order: 4, startedAt: null, completedAt: null },
+  { stepType: 'report', stepLabel: 'Report', status: 'pending', content: null, order: 5, startedAt: null, completedAt: null },
 ];
 
 // ─── Store ───────────────────────────────────────────────────────────────────
@@ -108,9 +110,25 @@ export const useResearchStore = create<ResearchState>((set) => ({
 
   addOrUpdateStep: (step) =>
     set((state) => ({
-      steps: state.steps.map((s) =>
-        s.stepType === step.stepType ? { ...s, ...step } : s
-      ),
+      steps: state.steps.map((s) => {
+        if (s.stepType !== step.stepType) return s;
+        const now = Date.now();
+        let startedAt = s.startedAt;
+        let completedAt = s.completedAt;
+        // Track when a step transitions to running
+        if (step.status === 'running' && s.status !== 'running') {
+          startedAt = now;
+          completedAt = null;
+        }
+        // Track when a step transitions to completed/failed/skipped
+        if (
+          (step.status === 'completed' || step.status === 'failed' || step.status === 'skipped') &&
+          s.status !== step.status
+        ) {
+          completedAt = now;
+        }
+        return { ...s, ...step, startedAt, completedAt };
+      }),
     })),
 
   addSearchResult: (result) =>

@@ -110,6 +110,19 @@ function StepCard({
   const Icon = STEP_ICONS[step.stepType] || Circle;
   const emoji = STEP_EMOJIS[step.stepType] || '';
 
+  // Compute step duration for completed steps
+  const stepDuration = React.useMemo(() => {
+    if (step.status !== 'completed' && step.status !== 'failed') return null;
+    if (!step.startedAt || !step.completedAt) return null;
+    const durationMs = step.completedAt - step.startedAt;
+    if (durationMs < 0) return null;
+    const durationSec = Math.floor(durationMs / 1000);
+    if (durationSec < 60) return `${durationSec}s`;
+    const m = Math.floor(durationSec / 60);
+    const s = durationSec % 60;
+    return `${m}m ${s}s`;
+  }, [step.status, step.startedAt, step.completedAt]);
+
   const glowColor = {
     pending: 'shadow-none',
     running: 'shadow-[0_0_12px_rgba(245,158,11,0.3)]',
@@ -231,7 +244,14 @@ function StepCard({
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Icon className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">{step.stepLabel}</span>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">{step.stepLabel}</span>
+                {stepDuration && (
+                  <span className="text-[10px] text-muted-foreground/60 tabular-nums">
+                    {stepDuration}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               {statusBadge}

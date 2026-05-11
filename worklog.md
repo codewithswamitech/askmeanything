@@ -365,3 +365,170 @@ The Web Research Agent Platform is now in a highly polished state with 3 complet
 5. **Add WebSocket support** — Real-time collaboration for multi-user sessions
 6. **Improve HTML export** — Use a proper Markdown-to-HTML library
 7. **Add rate limiting** — Protect API endpoints for production deployment
+
+---
+Task ID: 6-a
+Agent: Feature Agent
+Task: Implement 5 Features — Sources Search/Filter, Recent Query Chips, Source Category Badges, Abort Button, Word Count & Reading Time
+
+Work Log:
+- Read worklog.md and all 8 source files to understand full codebase architecture
+- Feature 1 — Search/Filter Within Sources Tab (results-panel.tsx):
+  - Added search input (shadcn Input) above the sources grid with Search icon
+  - Added real-time filtering by title, URL, or snippet text using `useMemo`
+  - Added "X of Y sources match" count display when filter is active
+  - Added animated clear button (X icon) inside input using framer-motion AnimatePresence
+  - Search styled with emerald focus ring, muted background, compact 8px height
+- Feature 2 — Recent Search Queries Suggestion Chips (query-input.tsx):
+  - Added `history` from store, computed last 5 unique queries using `useMemo`
+  - Chips appear below textarea when focused AND textarea is empty AND not processing
+  - Each chip is a small rounded pill with emerald outline border and emerald text
+  - Clock icon + "Recent:" label prefix for context
+  - Clicking a chip fills the textarea with that query and refocuses
+  - Chips truncated to 35 characters with ellipsis, max-width 180px
+  - Animated appear/disappear using framer-motion (height + opacity)
+- Feature 3 — Source Type/Category Badge (results-panel.tsx):
+  - Added `SourceCategory` type: 'News' | 'Wiki' | 'Gov' | 'Edu' | 'Social' | 'Web'
+  - Created `CATEGORY_STYLES` config with per-category colors:
+    - News: amber (bg-amber-100, text-amber-700)
+    - Wiki: emerald (bg-emerald-100, text-emerald-700)
+    - Gov: blue (bg-blue-100, text-blue-700)
+    - Edu: purple (bg-purple-100, text-purple-700)
+    - Social: pink (bg-pink-100, text-pink-700)
+    - Web: gray (bg-gray-100, text-gray-600)
+  - Created `getSourceCategory()` with domain-matching heuristic (checks for .gov, .edu, wikipedia, news sites, social media, etc.)
+  - Created `SourceCategoryBadge` component rendered next to each source title
+  - Badge is a small 9px font, rounded-full pill with border, placed after title text
+- Feature 4 — Research Abort/Cancel Button (page.tsx):
+  - Added cancel button (X icon) next to "Processing..." badge during research
+  - Button is a small 7×7 rounded-full pill with border, hover turns red
+  - On click: calls `abortRef.current?.abort()` then `resetSession()`
+  - Animated appear/disappear using framer-motion (opacity + width)
+  - Wrapped processing section in AnimatePresence for smooth exit
+  - Title attribute "Cancel research" for accessibility
+- Feature 5 — Report Word Count & Reading Time (results-panel.tsx):
+  - Added `wordCount` useMemo (splits report by whitespace, filters empty strings)
+  - Added `readingTime` useMemo (`Math.max(1, Math.ceil(wordCount / 200))` minutes)
+  - Both hooks placed before early returns to satisfy React Hooks rules
+  - Displayed as two small muted pill badges: "X words · Y min read"
+  - Clock icon on reading time badge
+  - Shown alongside Copy Report button in a flex row at top of report
+  - Only visible when report is available (not during loading/empty states)
+- Fixed lint error: moved useMemo hooks before early returns in ReportTab
+- All changes verified with zero lint errors and successful compilation (118ms)
+
+Stage Summary:
+- 5 new features implemented across 3 files (no new files created)
+- Sources search/filter improves findability when many sources are returned
+- Recent query chips provide quick access to previous research topics
+- Category badges give instant visual context about source types
+- Cancel button allows users to abort long-running research sessions
+- Word count and reading time help users gauge report depth before reading
+- All features use existing packages only (framer-motion, lucide-react, shadcn/ui)
+
+### Files Modified
+- `src/components/research/results-panel.tsx` — Source search/filter, category badges, word count & reading time
+- `src/components/research/query-input.tsx` — Recent query suggestion chips
+- `src/app/page.tsx` — Research abort/cancel button
+
+### Verification Results
+- ESLint: Zero errors
+- TypeScript compilation: Success (118ms)
+- Dev server: Running correctly
+
+---
+Task ID: 6-b
+Agent: Styling Expert
+Task: Styling Polish and Micro-interactions
+
+Work Log:
+- Read worklog.md and all 8 source files to understand current styling state
+- Verified all prior styling phases (3-a, 3, 4, 6-a) to avoid duplicating work
+- Implemented 10 micro-interaction and polish improvements
+
+### 1. Report Tab: Scroll Progress Indicator (results-panel.tsx)
+- Added scroll progress state (`scrollProgress`) and ref (`reportRef`) to ReportTab
+- Attached passive scroll event listener to report content div
+- Renders a 2px tall emerald gradient bar at top of report tab area
+- Width dynamically tracks scroll position (0%→100%)
+- Report content container set to max-h-[560px] with overflow-y-auto for scrollable area
+
+### 2. Loading Skeletons for Sources Tab (results-panel.tsx)
+- Added `SourceSkeletonCard` component with Skeleton elements mimicking source card layout (favicon circle + 2 text lines)
+- Added `isProcessing` check to SourcesTab
+- When processing AND no sources yet: shows 4 skeleton cards in 2-column grid with staggered animation
+- Skeletons fade out naturally as real sources stream in via AnimatePresence
+
+### 3. Tab Content Transition Animations (results-panel.tsx)
+- Replaced ScrollArea wrapper with plain div + scrollbar-thin for better tab content control
+- Wrapped each TabsContent child with motion.div (initial: opacity 0, y:4 → animate: opacity 1, y:0, 200ms)
+- Provides subtle fade+slide-up when switching between Sources/Scraped/Report tabs
+
+### 4. Agent Steps: Step Duration Display (store.ts + agent-steps.tsx)
+- Extended `AgentStep` interface with `startedAt: number | null` and `completedAt: number | null`
+- Updated DEFAULT_STEPS to include null timestamps
+- Enhanced `addOrUpdateStep` in store to track timestamps:
+  - Sets `startedAt` when step transitions to 'running'
+  - Sets `completedAt` when step transitions to 'completed'/'failed'/'skipped'
+- Added `stepDuration` computed value in StepCard using useMemo
+- Duration displayed below step label as "3s" or "1m 5s" in 10px muted text (only for completed/failed steps)
+
+### 5. Footer Enhancement (page.tsx)
+- Added emerald gradient separator line (from-transparent via-emerald-500/40 to-transparent, 1px)
+- Version badge upgraded to styled pill: rounded-full with border, muted bg, hover transitions to emerald accent
+- Added group hover on footer: text brightens, version badge gets emerald border+bg+tint
+- Footer bg transitions from 80% to 95% opacity on hover
+
+### 6. Source Card Hover Micro-interaction (results-panel.tsx)
+- Added `hover:scale-[1.01]` transform to source Card
+- External link icon now slides in from right: `translate-x-0.5 → translate-x-0` on group-hover
+
+### 7. History Panel: Empty State Illustration (history-panel.tsx)
+- Replaced FileSearch icon with inline SVG illustration (80×80 viewBox)
+- SVG shows a document shape with folded corner, 3 text lines, and magnifying glass
+- All elements use emerald color palette with opacity variants
+- Removed unused FileSearch import
+- Updated empty state message: "Your research history will appear here. Start a query to begin!"
+- Kept gradient glow backdrop behind illustration
+
+### 8. Query Input: Pulse Ring on Active Research (query-input.tsx + globals.css)
+- Added `.pulse-ring-border` CSS utility with `pulse-ring` keyframes (opacity 0.3→0.7→0.3, 2s infinite)
+- When `isProcessing=true`, renders an absolute-positioned 2px emerald border around query input
+- Ring uses CSS animation only (lightweight, no framer-motion)
+- Positioned at -inset-[3px] to sit outside the main card border
+
+### 9. Badge Improvements Across the App (globals.css)
+- Added global CSS rule targeting `.badge`, `[class*="badge"]`, `[data-slot="badge"]`
+- All badges get `transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease`
+- Hover state: `transform: scale(1.02)` for subtle interactive feedback
+- Applied consistently to all Badge components across the app (tab counts, status badges, category badges, etc.)
+
+### 10. Prose/Report Styling Enhancement (globals.css)
+- **Table**: Added `border-collapse: separate`, `border-spacing: 0`, rounded-lg overflow-hidden; thead th gets bg-muted/30 with rounded corners; tbody tr:nth-child(even) gets subtle bg-muted/20; last row gets rounded bottom corners; hover is emerald-tinted
+- **Blockquote**: Upgraded to 3px left border with `border-image: linear-gradient(to bottom, #10b981, #14b8a6, transparent) 1`; added gradient background tint (oklch emerald tones); dark mode has matching dark variant
+- **Code blocks (pre)**: Added rounded-xl, subtle box-shadow (4px light, 12px dark), relative positioning for future copy button support
+- **Lists**: Added custom marker colors for ul (emerald small circles via `::marker`) and ol (emerald weighted numbers); improved spacing with my-3 and space-y-1.5
+- **Links**: Added `::after` pseudo-element for external links (`a[target="_blank"]`) showing "↗" character with vertical-align:super; opacity 0.6→1 on hover
+- **Images**: Upgraded to rounded-xl with shadow-md
+
+### Verification Results
+- ESLint: Zero errors
+- TypeScript compilation: Success
+- `next build`: Successful, all routes compile correctly
+- All animations use framer-motion or CSS-only
+- Dark mode: all new styles include dark: variants
+- Color palette: exclusively emerald/teal/green
+- No new files created; all changes in existing files
+
+Stage Summary:
+- 10 micro-interaction and styling polish improvements implemented
+- Report tab now has scroll progress tracking
+- Sources tab shows skeleton placeholders during loading
+- Tab transitions have subtle fade+slide animations
+- Agent steps display per-step duration for completed steps
+- Footer enhanced with gradient separator and styled version pill
+- Source cards have subtle scale and slide-in micro-interactions
+- History panel empty state features custom SVG illustration
+- Query input pulses with emerald ring during active research
+- All badges have consistent hover transitions
+- Report prose styling significantly enhanced (tables, blockquotes, code, lists, links)

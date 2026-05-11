@@ -376,30 +376,49 @@ export default function Home() {
         </div>
         <div className="flex items-center gap-2">
           {/* Processing badge with pulsing animation + timer */}
+          <AnimatePresence>
           {isProcessing && (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 shadow-sm shadow-amber-500/10 dark:bg-amber-500/10 dark:shadow-amber-500/5"
+              className="flex items-center gap-2"
             >
-              <motion.div
-                className="relative flex h-2 w-2 items-center justify-center"
-              >
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
-              </motion.div>
-              <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
-                Processing...
-              </span>
-              {elapsedSeconds > 0 && (
-                <span className="flex items-center gap-1 text-[11px] tabular-nums text-amber-600/80 dark:text-amber-400/80">
-                  <Timer className="h-3 w-3" />
-                  {formatElapsed(elapsedSeconds)}
+              <div className="flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 shadow-sm shadow-amber-500/10 dark:bg-amber-500/10 dark:shadow-amber-500/5">
+                <motion.div
+                  className="relative flex h-2 w-2 items-center justify-center"
+                >
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                </motion.div>
+                <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                  Processing...
                 </span>
-              )}
+                {elapsedSeconds > 0 && (
+                  <span className="flex items-center gap-1 text-[11px] tabular-nums text-amber-600/80 dark:text-amber-400/80">
+                    <Timer className="h-3 w-3" />
+                    {formatElapsed(elapsedSeconds)}
+                  </span>
+                )}
+              </div>
+              {/* Cancel button */}
+              <motion.button
+                initial={{ opacity: 0, width: 0, marginLeft: 0 }}
+                animate={{ opacity: 1, width: 'auto', marginLeft: 0 }}
+                exit={{ opacity: 0, width: 0, marginLeft: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => {
+                  abortRef.current?.abort();
+                  resetSession();
+                }}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground shadow-sm transition-all duration-200 hover:bg-red-50 hover:border-red-200 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:border-red-500/20 dark:hover:text-red-400"
+                title="Cancel research"
+              >
+                <X className="h-3.5 w-3.5" />
+              </motion.button>
             </motion.div>
           )}
+          </AnimatePresence>
           {/* Completed timer badge */}
           {!isProcessing && hasStartedResearch && elapsedSeconds > 0 && (
             <motion.div
@@ -510,14 +529,18 @@ export default function Home() {
       </div>
 
       {/* ─── Footer ─────────────────────────────────────────────────── */}
-      <footer className="shrink-0 border-t bg-background/80 backdrop-blur-sm">
-        <div className="mx-auto flex h-10 max-w-7xl items-center justify-center gap-2 px-4">
+      <footer className="group shrink-0 border-t bg-background/80 backdrop-blur-sm transition-all duration-300 hover:bg-background/95">
+        {/* Gradient separator line */}
+        <div className="h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
+        <div className="mx-auto flex h-10 max-w-7xl items-center justify-center gap-2.5 px-4">
           <span className="h-3 w-[1px] bg-border" />
-          <span className="text-[11px] text-muted-foreground/60">
+          <span className="text-[11px] text-muted-foreground/60 transition-colors duration-300 group-hover:text-muted-foreground/80">
             Powered by AI Research Agent · Built with Next.js
           </span>
           <span className="h-3 w-[1px] bg-border" />
-          <span className="text-[10px] text-muted-foreground/40 font-mono">v1.0.0</span>
+          <span className="inline-flex items-center rounded-full border border-border/50 bg-muted/50 px-2 py-0.5 text-[10px] font-mono text-muted-foreground/50 transition-all duration-300 group-hover:border-emerald-500/20 group-hover:bg-emerald-500/5 group-hover:text-emerald-600/70 dark:group-hover:text-emerald-400/70">
+            v1.0.0
+          </span>
         </div>
       </footer>
     </div>

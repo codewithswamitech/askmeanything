@@ -2,7 +2,7 @@
 
 import React, { useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Loader2, ArrowUp, Settings2 } from 'lucide-react';
+import { Sparkles, Loader2, ArrowUp, Settings2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -22,9 +22,30 @@ import { Label } from '@/components/ui/label';
 import { useResearchStore } from '@/lib/store';
 
 export function QueryInput() {
-  const { query, setQuery, isProcessing, setProcessing, settings, setSettings } = useResearchStore();
+  const { query, setQuery, isProcessing, setProcessing, settings, setSettings, history } = useResearchStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isFocused, setIsFocused] = React.useState(false);
+
+  // Get last 5 unique queries from history
+  const recentQueries = React.useMemo(() => {
+    const seen = new Set<string>();
+    const unique: string[] = [];
+    for (const item of history) {
+      if (item.query && !seen.has(item.query)) {
+        seen.add(item.query);
+        unique.push(item.query);
+      }
+      if (unique.length >= 5) break;
+    }
+    return unique;
+  }, [history]);
+
+  const showRecentChips = isFocused && query.trim().length === 0 && recentQueries.length > 0 && !isProcessing;
+
+  const handleChipClick = (chipQuery: string) => {
+    setQuery(chipQuery);
+    textareaRef.current?.focus();
+  };
 
   const handleSubmit = useCallback(() => {
     const trimmed = query.trim();
@@ -58,6 +79,11 @@ export function QueryInput() {
       className="w-full max-w-3xl mx-auto"
     >
       <div className="relative">
+        {/* Pulse ring when processing */}
+        {isProcessing && (
+          <div className="absolute -inset-[3px] rounded-2xl border-2 border-emerald-500 pulse-ring-border pointer-events-none" />
+        )}
+
         {/* Larger, softer gradient glow effect on focus */}
         <motion.div
           className="absolute -inset-[3px] rounded-2xl bg-gradient-to-r from-emerald-500/40 via-teal-400/30 to-emerald-500/40 opacity-0 blur-md"
@@ -176,6 +202,34 @@ export function QueryInput() {
             className="min-h-[100px] resize-none border-0 bg-transparent text-base shadow-none placeholder:text-muted-foreground/50 focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50 transition-opacity duration-200"
             rows={3}
           />
+
+          {/* Recent query suggestion chips */}
+          <AnimatePresence>
+            {showRecentChips && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="flex items-center gap-1.5 pb-2 -mt-1 flex-wrap">
+                  <Clock className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+                  <span className="text-[10px] text-muted-foreground/50 shrink-0">Recent:</span>
+                  {recentQueries.map((recentQuery) => (
+                    <button
+                      key={recentQuery}
+                      type="button"
+                      onClick={() => handleChipClick(recentQuery)}
+                      className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-500/5 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 transition-all duration-150 hover:bg-emerald-100 dark:hover:bg-emerald-500/10 hover:border-emerald-500/50 active:scale-95 max-w-[180px]"
+                    >
+                      <span className="truncate">{recentQuery.length > 35 ? recentQuery.slice(0, 35) + '…' : recentQuery}</span>
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Footer with hint, char count, and submit */}
           <div className="flex items-center justify-between">
