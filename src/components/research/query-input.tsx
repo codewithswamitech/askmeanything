@@ -2,7 +2,7 @@
 
 import React, { useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Loader2, ArrowUp, Settings2, Clock } from 'lucide-react';
+import { Sparkles, Loader2, ArrowUp, Settings2, Clock, Cpu, FlaskConical, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,37 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { useResearchStore } from '@/lib/store';
+
+// ─── Template data for picker ────────────────────────────────────────────────
+
+const TEMPLATE_GROUPS = [
+  {
+    category: 'Technology',
+    icon: Cpu,
+    items: [
+      'Latest developments in AI and machine learning',
+      'Compare React vs Vue vs Angular frameworks',
+    ],
+  },
+  {
+    category: 'Science',
+    icon: FlaskConical,
+    items: [
+      'Current state of climate change research',
+      'Recent breakthroughs in quantum computing',
+    ],
+  },
+  {
+    category: 'Business',
+    icon: TrendingUp,
+    items: [
+      'Analyze the electric vehicle market trends',
+      'Overview of remote work productivity research',
+    ],
+  },
+];
 
 export function QueryInput() {
   const { query, setQuery, isProcessing, setProcessing, settings, setSettings, history } = useResearchStore();
@@ -185,8 +215,8 @@ export function QueryInput() {
 
           {/* Active settings badges */}
           {(settings.maxSources !== 10 || settings.pagesToScrape !== 5) && !isProcessing && (
-            <div className="flex items-center gap-1.5 -mt-1">
-              <Badge variant="outline" className="text-[10px] text-muted-foreground gap-1 px-2 py-0">
+            <div className="flex items-center gap-1.5 -mt-1 max-w-full overflow-hidden">
+              <Badge variant="outline" className="text-[10px] text-muted-foreground gap-1 px-2 py-0 max-[400px]:hidden">
                 <Settings2 className="h-2.5 w-2.5" />
                 {settings.maxSources} sources · {settings.pagesToScrape} pages
               </Badge>
@@ -207,6 +237,39 @@ export function QueryInput() {
             className="min-h-[100px] resize-none border-0 bg-transparent text-base shadow-none placeholder:text-muted-foreground/50 focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50 transition-opacity duration-200"
             rows={3}
           />
+
+          {/* Template picker dropdown when focused & empty & not processing */}
+          <AnimatePresence>
+            {isFocused && query.trim().length === 0 && !isProcessing && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="flex items-center gap-1.5 pb-2 -mt-1">
+                  <Sparkles className="h-3 w-3 text-emerald-500/40 shrink-0" />
+                  <span className="text-[10px] text-muted-foreground/50 shrink-0">Templates:</span>
+                  {TEMPLATE_GROUPS.map((group) =>
+                    group.items.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => {
+                          setQuery(item);
+                          textareaRef.current?.focus();
+                        }}
+                        className="inline-flex items-center rounded-full border border-teal-500/20 bg-teal-50/30 dark:bg-teal-500/5 px-2.5 py-0.5 text-[11px] font-medium text-teal-700 dark:text-teal-400 transition-all duration-150 hover:bg-teal-100 dark:hover:bg-teal-500/10 hover:border-teal-500/40 active:scale-95 max-w-[160px]"
+                      >
+                        <span className="truncate">{item.length > 30 ? item.slice(0, 30) + '…' : item}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Recent query suggestion chips */}
           <AnimatePresence>

@@ -354,7 +354,13 @@ function StepCard({
             </div>
           </div>
 
-          {/* Content preview tooltip on hover (when not expanded) */}
+          {/* Content preview indicator + hover tooltip (when not expanded) */}
+          {step.content && (step.status === 'completed' || step.status === 'failed') && !isExpanded && (
+            <div className={`mt-1.5 flex items-center gap-1 ${isHovered ? '' : ''}`}>
+              <FileText className="h-3 w-3 text-muted-foreground/40" />
+              <span className="text-[10px] text-muted-foreground/40">Click to expand</span>
+            </div>
+          )}
           <AnimatePresence>
             {isHovered && step.content && !isExpanded && (
               <motion.div
@@ -364,7 +370,7 @@ function StepCard({
                 transition={{ duration: 0.2 }}
                 className="mt-2 overflow-hidden rounded-md border border-border/40 bg-muted/60 px-3 py-2 text-xs leading-relaxed text-muted-foreground/70 shadow-sm dark:bg-muted/40"
               >
-                <span className="block truncate">{step.content.length > 50 ? step.content.slice(0, 50) + '…' : step.content}</span>
+                <span className="block line-clamp-2">{step.content.length > 100 ? step.content.slice(0, 100) + '…' : step.content}</span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -379,7 +385,7 @@ function StepCard({
                 className="overflow-hidden"
               >
                 <div className="relative mt-2">
-                  <div className="rounded-md bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                  <div className="max-h-[240px] overflow-y-auto rounded-md bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap scrollbar-thin border border-border/30">
                     {step.content}
                   </div>
                   <StepCopyButton content={step.content} />

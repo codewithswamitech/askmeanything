@@ -31,6 +31,7 @@ import {
   Maximize2,
   Minimize2,
   StickyNote,
+  FileSpreadsheet,
 } from 'lucide-react';
 import {
   Select,
@@ -290,13 +291,13 @@ function useAnimatedCounter(target: number, duration: number = 800) {
 
 function SourceSkeletonCard() {
   return (
-    <div className="rounded-xl border border-border/50 p-4">
+    <div className="rounded-xl border border-border/50 p-4 shimmer-skeleton">
       <div className="flex items-start gap-3">
-        <Skeleton className="h-8 w-8 shrink-0 rounded-md" />
+        <Skeleton className="h-8 w-8 shrink-0 rounded-md shimmer-skeleton" />
         <div className="min-w-0 flex-1 space-y-2">
-          <Skeleton className="h-3.5 w-3/4" />
-          <Skeleton className="h-3 w-1/2" />
-          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3.5 w-3/4 shimmer-skeleton" />
+          <Skeleton className="h-3 w-1/2 shimmer-skeleton" />
+          <Skeleton className="h-3 w-full shimmer-skeleton" />
         </div>
       </div>
     </div>
@@ -809,7 +810,7 @@ function ReportToc({ headings, activeId }: { headings: TocItem[]; activeId: stri
             Contents
           </span>
         </div>
-        <div className="space-y-0.5 max-h-[480px] overflow-y-auto scrollbar-thin">
+        <div className="space-y-0.5 max-h-[480px] overflow-y-auto scrollbar-auto-hide">
           {headings.map((heading) => {
             const isActive = activeId === heading.id;
             return (
@@ -883,6 +884,35 @@ function ReportTab() {
   const setFullscreenReport = useResearchStore((s) => s.setFullscreenReport);
   const reportStep = steps.find((s) => s.stepType === 'report');
   const isReportRunning = reportStep?.status === 'running';
+
+  // Report search state (before any early return)
+  const [reportSearch, setReportSearch] = React.useState('');
+
+  // Report search match count (before any early return)
+  const reportMatchCount = React.useMemo(() => {
+    if (!reportSearch.trim() || !report) return 0;
+    const escapedSearch = reportSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(escapedSearch, 'gi');
+    const matches = report.match(regex);
+    return matches ? matches.length : 0;
+  }, [reportSearch, report]);
+
+  // Highlighted report text for ReactMarkdown
+  const highlightMarkdownText = React.useCallback((text: string): React.ReactNode => {
+    if (!reportSearch.trim() || typeof text !== 'string') return text;
+    const escapedSearch = reportSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedSearch})`, 'gi');
+    if (!regex.test(text)) return text;
+    regex.lastIndex = 0;
+    const parts = text.split(regex);
+    return parts.map((part, i) => {
+      const testRegex = new RegExp(escapedSearch, 'i');
+      if (testRegex.test(part)) {
+        return <mark key={i} className="rounded-sm bg-emerald-500/30 px-0.5 text-inherit dark:bg-emerald-400/20">{part}</mark>;
+      }
+      return part;
+    });
+  }, [reportSearch]);
 
   // Word count and reading time (must be before any early return)
   const wordCount = React.useMemo(() => {
@@ -1007,14 +1037,14 @@ function ReportTab() {
           <span className="text-sm font-medium">Generating report...</span>
         </div>
         <div className="space-y-3">
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-5/6" />
-          <Skeleton className="h-4 w-2/3" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-4/5" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4 shimmer-skeleton" />
+          <Skeleton className="h-4 w-full shimmer-skeleton" />
+          <Skeleton className="h-4 w-5/6 shimmer-skeleton" />
+          <Skeleton className="h-4 w-2/3 shimmer-skeleton" />
+          <Skeleton className="h-4 w-full shimmer-skeleton" />
+          <Skeleton className="h-4 w-4/5 shimmer-skeleton" />
+          <Skeleton className="h-4 w-3/4 shimmer-skeleton" />
+          <Skeleton className="h-4 w-full shimmer-skeleton" />
         </div>
       </motion.div>
     );
@@ -1045,6 +1075,43 @@ function ReportTab() {
           <div className="mt-2 h-px bg-gradient-to-r from-emerald-500/40 via-teal-500/20 to-transparent" />
         </div>
       )}
+
+      {/* Report search input */}
+      <div className="mb-3 space-y-1.5">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+          <Input
+            placeholder="Search in report..."
+            value={reportSearch}
+            onChange={(e) => setReportSearch(e.target.value)}
+            className="h-8 border-border/60 bg-muted/30 pl-8 pr-8 text-xs shadow-none transition-all duration-200 focus-visible:ring-1 focus-visible:ring-emerald-500/30 focus-visible:bg-muted/50"
+          />
+          <AnimatePresence>
+            {reportSearch.length > 0 && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.15 }}
+                onClick={() => setReportSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted transition-colors"
+              >
+                <X className="h-3 w-3" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
+        {reportSearch.trim() && (
+          <motion.p
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="text-[11px] text-muted-foreground/60"
+          >
+            <span className="font-medium text-emerald-600/80 dark:text-emerald-400/80">{reportMatchCount}</span>{' '}match{reportMatchCount !== 1 ? 'es' : ''} found
+          </motion.p>
+        )}
+      </div>
 
       {/* Word count & reading time + Copy report button */}
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -1083,7 +1150,6 @@ function ReportTab() {
             <ReactMarkdown
               components={{
                 h2: ({ children, ...props }) => {
-                  // Find the matching heading index and assign id
                   const text = String(children).replace(/[*_`#]/g, '').trim();
                   const idx = headings.findIndex((h) => h.text === text && h.level === 2);
                   const id = idx >= 0 ? headings[idx].id : undefined;
@@ -1094,6 +1160,69 @@ function ReportTab() {
                   const idx = headings.findIndex((h) => h.text === text && h.level === 3);
                   const id = idx >= 0 ? headings[idx].id : undefined;
                   return <h3 id={id} {...props}>{children}</h3>;
+                },
+                p: ({ children, ...props }) => {
+                  if (!reportSearch.trim() || !children) return <p {...props}>{children}</p>;
+                  const text = String(children);
+                  if (typeof children !== 'string') return <p {...props}>{children}</p>;
+                  const escapedSearch = reportSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                  const testRegex = new RegExp(escapedSearch, 'i');
+                  if (!testRegex.test(text)) return <p {...props}>{children}</p>;
+                  const splitRegex = new RegExp(`(${escapedSearch})`, 'gi');
+                  const parts = text.split(splitRegex);
+                  return (
+                    <p {...props}>
+                      {parts.map((part, i) => {
+                    const m = new RegExp(escapedSearch, 'i');
+                    if (m.test(part)) {
+                      return <mark key={i} className="rounded-sm bg-emerald-500/30 px-0.5 text-inherit dark:bg-emerald-400/20">{part}</mark>;
+                    }
+                    return part;
+                  })}
+                    </p>
+                  );
+                },
+                li: ({ children, ...props }) => {
+                  if (!reportSearch.trim() || !children) return <li {...props}>{children}</li>;
+                  const text = String(children);
+                  if (typeof children !== 'string') return <li {...props}>{children}</li>;
+                  const escapedSearch = reportSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                  const testRegex = new RegExp(escapedSearch, 'i');
+                  if (!testRegex.test(text)) return <li {...props}>{children}</li>;
+                  const splitRegex = new RegExp(`(${escapedSearch})`, 'gi');
+                  const parts = text.split(splitRegex);
+                  return (
+                    <li {...props}>
+                      {parts.map((part, i) => {
+                    const m = new RegExp(escapedSearch, 'i');
+                    if (m.test(part)) {
+                      return <mark key={i} className="rounded-sm bg-emerald-500/30 px-0.5 text-inherit dark:bg-emerald-400/20">{part}</mark>;
+                    }
+                    return part;
+                  })}
+                    </li>
+                  );
+                },
+                strong: ({ children, ...props }) => {
+                  if (!reportSearch.trim() || !children) return <strong {...props}>{children}</strong>;
+                  const text = String(children);
+                  if (typeof children !== 'string') return <strong {...props}>{children}</strong>;
+                  const escapedSearch = reportSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                  const testRegex = new RegExp(escapedSearch, 'i');
+                  if (!testRegex.test(text)) return <strong {...props}>{children}</strong>;
+                  const splitRegex = new RegExp(`(${escapedSearch})`, 'gi');
+                  const parts = text.split(splitRegex);
+                  return (
+                    <strong {...props}>
+                      {parts.map((part, i) => {
+                    const m = new RegExp(escapedSearch, 'i');
+                    if (m.test(part)) {
+                      return <mark key={i} className="rounded-sm bg-emerald-500/30 px-0.5 text-inherit dark:bg-emerald-400/20">{part}</mark>;
+                    }
+                    return part;
+                  })}
+                    </strong>
+                  );
                 },
               }}
             >
@@ -1244,7 +1373,7 @@ function StatsSummaryCard() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 overflow-x-auto"
+      className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 max-[480px]:grid-cols-2"
     >
       {stats.map((stat, idx) => (
         <motion.div
@@ -1252,7 +1381,7 @@ function StatsSummaryCard() {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3, delay: idx * 0.1 }}
-          className={`flex items-center gap-2.5 rounded-xl border-l-2 border border-t-0 border-r-0 border-b-0 p-3 bg-gradient-to-r ${stat.gradient} ${stat.accentBorder} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm`}
+          className={`flex items-center gap-2.5 rounded-xl border-l-2 border border-t-0 border-r-0 border-b-0 p-3 bg-gradient-to-r ${stat.gradient} ${stat.accentBorder} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm card-elevated`}
         >
           <stat.icon className={`h-4 w-4 shrink-0 ${stat.color}`} />
           <div className="min-w-0">
@@ -1302,6 +1431,51 @@ export function ResultsPanel() {
   const handleExport = (format: 'md' | 'html') => {
     if (!currentSessionId) return;
     window.open(`/api/agent/session/${currentSessionId}/export?format=${format}`, '_blank');
+  };
+
+  // Export all sources as CSV
+  const handleExportCsv = () => {
+    if (searchResults.length === 0 && scrapedResults.length === 0) {
+      toast.error('No sources to export');
+      return;
+    }
+    const seen = new Set<string>();
+    const allSources: Array<{ url: string; title: string; snippet: string | null; hostName: string | null }> = [];
+    for (const r of searchResults) {
+      if (!seen.has(r.url)) {
+        seen.add(r.url);
+        allSources.push(r);
+      }
+    }
+    for (const r of scrapedResults) {
+      if (!seen.has(r.url)) {
+        seen.add(r.url);
+        allSources.push({ url: r.url, title: r.title, snippet: null, hostName: null });
+      }
+    }
+
+    const header = 'title,url,snippet,hostName,category\n';
+    const rows = allSources.map((s) => {
+      const category = getSourceCategory(s.url);
+      const esc = (val: string | null) => {
+        if (!val) return '""';
+        const escaped = val.replace(/"/g, '""');
+        return `"${escaped}"`;
+      };
+      return [esc(s.title), esc(s.url), esc(s.snippet), esc(s.hostName), esc(category)].join(',');
+    }).join('\n');
+
+    const csvContent = header + rows;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `research-sources-${currentSessionId?.slice(0, 6) || 'export'}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${allSources.length} sources as CSV`);
   };
 
   // Fetch session notes on mount if session exists
@@ -1455,6 +1629,10 @@ export function ResultsPanel() {
                 <DropdownMenuItem onClick={() => handleExport('html')}>
                   <FileOutput className="mr-2 h-4 w-4" />
                   Download HTML
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExportCsv()}>
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  Export CSV
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

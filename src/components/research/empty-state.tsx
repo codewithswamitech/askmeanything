@@ -13,6 +13,9 @@ import {
   FileText,
   Rocket,
   Zap,
+  Cpu,
+  FlaskConical,
+  TrendingUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useResearchStore } from '@/lib/store';
@@ -34,6 +37,35 @@ const features = [
     icon: BarChart3,
     title: 'Smart Reports',
     description: 'Get comprehensive, well-structured research reports with citations.',
+  },
+];
+
+// ─── Research Templates ─────────────────────────────────────────────────────
+
+const RESEARCH_TEMPLATES = [
+  {
+    category: 'Technology',
+    icon: Cpu,
+    templates: [
+      { icon: '🤖', text: 'Latest developments in AI and machine learning' },
+      { icon: '⚛️', text: 'Compare React vs Vue vs Angular frameworks' },
+    ],
+  },
+  {
+    category: 'Science',
+    icon: FlaskConical,
+    templates: [
+      { icon: '🌍', text: 'Current state of climate change research' },
+      { icon: '🔬', text: 'Recent breakthroughs in quantum computing' },
+    ],
+  },
+  {
+    category: 'Business',
+    icon: TrendingUp,
+    templates: [
+      { icon: '🚗', text: 'Analyze the electric vehicle market trends' },
+      { icon: '📊', text: 'Overview of remote work productivity research' },
+    ],
   },
 ];
 
@@ -270,9 +302,20 @@ export function EmptyState() {
         </div>
       </motion.div>
 
+      {/* Fake search bar with typing cursor illustration */}
+      <motion.div variants={itemVariants} className="mb-8 w-full max-w-md mx-auto">
+        <div className="flex items-center gap-3 rounded-2xl border border-border/40 bg-muted/30 px-4 py-3 shadow-sm">
+          <Sparkles className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+          <span className="flex-1 text-sm text-muted-foreground/40 truncate">
+            What would you like to research?
+          </span>
+          <span className="typing-cursor inline-block h-5 w-[2px] rounded-full bg-emerald-500 dark:bg-emerald-400 shrink-0" />
+        </div>
+      </motion.div>
+
       {/* Heading */}
       <motion.div variants={itemVariants} className="mb-4 text-center">
-        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+        <h2 className="heading-gradient text-3xl font-bold tracking-tight sm:text-4xl">
           Web Research Agent
         </h2>
         <p className="mt-3 text-sm text-muted-foreground sm:text-base max-w-lg mx-auto leading-relaxed">
@@ -284,14 +327,14 @@ export function EmptyState() {
       {/* Feature cards with glassmorphism + gradient border on hover */}
       <motion.div
         variants={itemVariants}
-        className="mt-10 mb-14 grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3"
+        className="mt-10 mb-14 grid w-full max-w-2xl grid-cols-1 gap-3 max-[360px]:grid-cols-1 sm:grid-cols-3"
       >
         {features.map((feature, idx) => (
           <motion.div
             key={feature.title}
             variants={itemVariants}
             whileHover={{ y: -2, transition: { duration: 0.2 } }}
-            className="gradient-border group relative flex flex-col items-center gap-2.5 rounded-xl border border-white/20 bg-white/40 p-5 text-center shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/5 dark:border-white/5 dark:bg-white/5 dark:backdrop-blur-md"
+            className="gradient-border group relative flex flex-col items-center gap-2.5 rounded-xl border border-white/20 bg-white/40 p-5 text-center shadow-sm backdrop-blur-md transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/5 dark:border-white/5 dark:bg-white/5 dark:backdrop-blur-md card-interactive"
           >
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted/80 backdrop-blur-sm transition-colors duration-300 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-500/10">
               <feature.icon className="h-5 w-5 text-foreground transition-colors duration-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400" />
@@ -332,6 +375,51 @@ export function EmptyState() {
               </span>
               <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/0 transition-all duration-200 group-hover:text-emerald-500 group-hover:translate-x-0.5" />
             </motion.button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Templates section with grouped layout */}
+      <motion.div variants={itemVariants} className="w-full max-w-2xl">
+        <div className="mt-10 mb-4 flex items-center gap-2 justify-center">
+          <div className="h-px flex-1 max-w-[60px] bg-border/50" />
+          <span className="text-[10px] font-semibold text-muted-foreground/40 uppercase tracking-wider">
+            Or pick a template
+          </span>
+          <div className="h-px flex-1 max-w-[60px] bg-border/50" />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {RESEARCH_TEMPLATES.map((group) => (
+            <motion.div
+              key={group.category}
+              variants={itemVariants}
+              className="space-y-2"
+            >
+              <div className="flex items-center gap-2 px-1">
+                <group.icon className="h-3.5 w-3.5 text-muted-foreground/50" />
+                <span className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
+                  {group.category}
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {group.templates.map((tmpl, idx) => (
+                  <motion.button
+                    key={idx}
+                    onClick={() => handleExampleClick(tmpl.text)}
+                    className="group relative flex items-center gap-2.5 w-full overflow-hidden rounded-lg border border-border/40 bg-card/60 p-3 text-left transition-all duration-200 hover:border-emerald-500/30 hover:bg-emerald-50/50 dark:bg-white/5 dark:hover:bg-emerald-500/5"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/60 text-sm transition-colors duration-200 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-500/15">
+                      {tmpl.icon}
+                    </span>
+                    <span className="flex-1 text-xs text-muted-foreground group-hover:text-foreground transition-colors duration-200 leading-snug">
+                      {tmpl.text}
+                    </span>
+                    <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground/0 transition-all duration-200 group-hover:text-emerald-500 group-hover:translate-x-0.5" />
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
           ))}
         </div>
       </motion.div>

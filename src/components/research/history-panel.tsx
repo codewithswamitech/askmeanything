@@ -15,6 +15,7 @@ import {
   Pencil,
   Check,
   X,
+  Copy,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -118,12 +119,14 @@ function HistoryItemCard({
   isActive,
   onDelete,
   onRename,
+  onDuplicate,
 }: {
   item: HistoryItem;
   onClick: () => void;
   isActive: boolean;
   onDelete: (id: string) => void;
   onRename: (id: string, newQuery: string) => void;
+  onDuplicate: (id: string) => void;
 }) {
   const [isRenaming, setIsRenaming] = React.useState(false);
   const [renameValue, setRenameValue] = React.useState(item.query);
@@ -162,6 +165,11 @@ function HistoryItemCard({
   const handleRenameClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsRenaming(true);
+  };
+
+  const handleDuplicateClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDuplicate(item.id);
   };
 
   return (
@@ -222,6 +230,15 @@ function HistoryItemCard({
                       <ArrowRight className="h-3.5 w-3.5 text-emerald-500" />
                     </motion.div>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400"
+                    onClick={handleDuplicateClick}
+                    title="Duplicate session"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -419,8 +436,27 @@ export function HistoryPanel() {
     [refreshHistory]
   );
 
+  const handleDuplicate = React.useCallback(
+    async (id: string) => {
+      try {
+        const res = await fetch(`/api/agent/session/${id}/duplicate`, {
+          method: 'POST',
+        });
+        if (res.ok) {
+          toast.success('Session duplicated');
+          await refreshHistory();
+        } else {
+          toast.error('Failed to duplicate session');
+        }
+      } catch {
+        toast.error('Failed to duplicate session');
+      }
+    },
+    [refreshHistory]
+  );
+
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col max-[360px]:hidden">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-3">
         <History className="h-4 w-4 text-muted-foreground" />
@@ -549,6 +585,7 @@ export function HistoryPanel() {
                       onClick={() => handleLoadSession(item.id)}
                       onDelete={handleDeleteSingle}
                       onRename={handleRename}
+                      onDuplicate={handleDuplicate}
                     />
                   ))}
                 </div>
