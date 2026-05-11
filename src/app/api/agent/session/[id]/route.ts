@@ -123,3 +123,58 @@ export async function DELETE(
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// PATCH /api/agent/session/[id]
+// Renames a research session's query
+// ---------------------------------------------------------------------------
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Session ID is required." },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    const { query: newQuery } = body;
+
+    if (!newQuery || typeof newQuery !== "string" || newQuery.trim().length === 0) {
+      return NextResponse.json(
+        { error: "Query is required and must be a non-empty string." },
+        { status: 400 }
+      );
+    }
+
+    const session = await db.researchSession.findUnique({
+      where: { id },
+    });
+
+    if (!session) {
+      return NextResponse.json(
+        { error: "Session not found." },
+        { status: 404 }
+      );
+    }
+
+    await db.researchSession.update({
+      where: { id },
+      data: { query: newQuery.trim() },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[session] Failed to rename session:", error);
+    return NextResponse.json(
+      { error: "Failed to rename session." },
+      { status: 500 }
+    );
+  }
+}

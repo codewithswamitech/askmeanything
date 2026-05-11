@@ -25,7 +25,16 @@ import {
   ArrowUp,
   Eye,
   List,
+  ArrowUpDown,
+  Highlighter,
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -263,6 +272,7 @@ function SourcesTab() {
   const openedSources = useResearchStore((s) => s.openedSources);
   const markSourceOpened = useResearchStore((s) => s.markSourceOpened);
   const [sourceFilter, setSourceFilter] = React.useState('');
+  const [sortOrder, setSortOrder] = React.useState<string>('default');
 
   // Merge unique sources from both search and scraped results
   const allSources = React.useMemo(() => {
@@ -291,15 +301,36 @@ function SourcesTab() {
 
   // Filter sources by search text
   const filteredSources = React.useMemo(() => {
-    if (!sourceFilter.trim()) return allSources;
-    const q = sourceFilter.toLowerCase();
-    return allSources.filter(
-      (s) =>
-        s.title.toLowerCase().includes(q) ||
-        s.url.toLowerCase().includes(q) ||
-        (s.snippet && s.snippet.toLowerCase().includes(q))
-    );
-  }, [allSources, sourceFilter]);
+    let sources = allSources;
+    if (sourceFilter.trim()) {
+      const q = sourceFilter.toLowerCase();
+      sources = sources.filter(
+        (s) =>
+          s.title.toLowerCase().includes(q) ||
+          s.url.toLowerCase().includes(q) ||
+          (s.snippet && s.snippet.toLowerCase().includes(q))
+      );
+    }
+    // Apply sorting
+    const sorted = [...sources];
+    switch (sortOrder) {
+      case 'name-asc':
+        sorted.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'name-desc':
+        sorted.sort((a, b) => b.title.localeCompare(a.title));
+        break;
+      case 'newest':
+        sorted.reverse();
+        break;
+      case 'oldest':
+        // Already in oldest-first order (original)
+        break;
+      default:
+        break;
+    }
+    return sorted;
+  }, [allSources, sourceFilter, sortOrder]);
 
   const hasSources = allSources.length > 0;
   const openedCount = allSources.filter((s) => openedSources.has(s.url)).length;
@@ -355,30 +386,45 @@ function SourcesTab() {
       animate={{ opacity: 1 }}
       className="space-y-3"
     >
-      {/* Search input for filtering sources */}
+      {/* Search input + Sort dropdown for filtering sources */}
       <div className="space-y-2">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
-          <Input
-            placeholder="Search sources..."
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-            className="h-8 border-border/60 bg-muted/30 pl-8 pr-8 text-xs shadow-none transition-all duration-200 focus-visible:ring-1 focus-visible:ring-emerald-500/30 focus-visible:bg-muted/50"
-          />
-          <AnimatePresence>
-            {sourceFilter.length > 0 && (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.15 }}
-                onClick={() => setSourceFilter('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted transition-colors"
-              >
-                <X className="h-3 w-3" />
-              </motion.button>
-            )}
-          </AnimatePresence>
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+            <Input
+              placeholder="Search sources..."
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+              className="h-8 border-border/60 bg-muted/30 pl-8 pr-8 text-xs shadow-none transition-all duration-200 focus-visible:ring-1 focus-visible:ring-emerald-500/30 focus-visible:bg-muted/50"
+            />
+            <AnimatePresence>
+              {sourceFilter.length > 0 && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.15 }}
+                  onClick={() => setSourceFilter('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
+          <Select value={sortOrder} onValueChange={setSortOrder}>
+            <SelectTrigger className="h-8 w-auto min-w-[130px] border-border/60 bg-muted/30 text-xs shadow-none transition-all duration-200 focus-visible:ring-1 focus-visible:ring-emerald-500/30">
+              <ArrowUpDown className="h-3 w-3 text-muted-foreground/60" />
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Default</SelectItem>
+              <SelectItem value="name-asc">Name A-Z</SelectItem>
+              <SelectItem value="name-desc">Name Z-A</SelectItem>
+              <SelectItem value="newest">Newest First</SelectItem>
+              <SelectItem value="oldest">Oldest First</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex items-center gap-2">
           {sourceFilter.trim() && (
@@ -432,10 +478,22 @@ function SourcesTab() {
                   {isOpened && (
                     <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500/50" />
                   )}
-                  <CardContent className="p-4">
+                  {/* Subtle gradient background on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/0 to-emerald-50/0 group-hover:from-emerald-50/60 group-hover:to-teal-50/30 dark:group-hover:from-emerald-500/5 dark:group-hover:to-teal-500/3 transition-all duration-300 pointer-events-none" />
+                  <CardContent className="p-4 relative">
                     <div className="flex items-start gap-3">
-                      {/* Favicon */}
-                      <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-background transition-shadow duration-200 group-hover:shadow-sm ${isOpened ? 'border-emerald-500/30' : ''}`}>
+                      {/* Favicon with pulse for new sources */}
+                      <motion.div
+                        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-background transition-shadow duration-200 group-hover:shadow-sm ${isOpened ? 'border-emerald-500/30' : ''}`}
+                        initial={{ boxShadow: '0 0 0 0 rgba(16, 185, 129, 0.3)' }}
+                        animate={{
+                          boxShadow: [
+                            '0 0 0 0 rgba(16, 185, 129, 0.3)',
+                            '0 0 0 4px rgba(16, 185, 129, 0)',
+                          ],
+                        }}
+                        transition={{ duration: 1.5, repeat: 1, ease: 'easeOut' }}
+                      >
                         {getFaviconUrl(source.url) && (
                           <img
                             src={getFaviconUrl(source.url)}
@@ -444,7 +502,7 @@ function SourcesTab() {
                             loading="lazy"
                           />
                         )}
-                      </div>
+                      </motion.div>
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
@@ -465,7 +523,7 @@ function SourcesTab() {
                                 <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                               </motion.div>
                             )}
-                            <ExternalLink className="mt-0.5 h-3.5 w-3.5 text-muted-foreground opacity-0 translate-x-0.5 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-emerald-500" />
+                            <ExternalLink className="mt-0.5 h-3.5 w-3.5 text-muted-foreground opacity-0 translate-x-0.5 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-emerald-500 group-hover:animate-[bounce_0.5s_ease-in-out_1]" />
                           </div>
                         </div>
 
@@ -503,6 +561,47 @@ function SourcesTab() {
 function ScrapedContentTab() {
   const scrapedResults = useResearchStore((s) => s.scrapedResults);
 
+  // Search highlight for scraped content (before any early return)
+  const [contentSearch, setContentSearch] = React.useState('');
+
+  const highlightInfo = React.useMemo(() => {
+    if (!contentSearch.trim() || scrapedResults.length === 0) return { totalMatches: 0, pagesWithMatches: 0 };
+    let totalMatches = 0;
+    let pagesWithMatches = 0;
+    const escapedSearch = contentSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(escapedSearch, 'gi');
+    for (const r of scrapedResults) {
+      const matches = r.content.match(regex);
+      if (matches && matches.length > 0) {
+        totalMatches += matches.length;
+        pagesWithMatches++;
+      }
+    }
+    return { totalMatches, pagesWithMatches };
+  }, [contentSearch, scrapedResults]);
+
+  const highlightText = (text: string) => {
+    if (!contentSearch.trim()) return text;
+    const escapedSearch = contentSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedSearch})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, i) => {
+      if (regex.test(part)) {
+        regex.lastIndex = 0;
+        return (
+          <mark
+            key={i}
+            className="rounded-sm bg-emerald-500/25 px-0.5 text-inherit dark:bg-emerald-400/20"
+          >
+            {part}
+          </mark>
+        );
+      }
+      regex.lastIndex = 0;
+      return part;
+    });
+  };
+
   if (scrapedResults.length === 0) {
     return (
       <motion.div
@@ -530,7 +629,45 @@ function ScrapedContentTab() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      className="space-y-3"
     >
+      {/* Search input for scraped content */}
+      <div className="space-y-1.5">
+        <div className="relative">
+          <Highlighter className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+          <Input
+            placeholder="Search in scraped content..."
+            value={contentSearch}
+            onChange={(e) => setContentSearch(e.target.value)}
+            className="h-8 border-border/60 bg-muted/30 pl-8 pr-8 text-xs shadow-none transition-all duration-200 focus-visible:ring-1 focus-visible:ring-emerald-500/30 focus-visible:bg-muted/50"
+          />
+          <AnimatePresence>
+            {contentSearch.length > 0 && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.15 }}
+                onClick={() => setContentSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted transition-colors"
+              >
+                <X className="h-3 w-3" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
+        {contentSearch.trim() && (
+          <motion.p
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-[11px] text-muted-foreground/60"
+          >
+            <span className="font-medium text-emerald-600/80 dark:text-emerald-400/80">{highlightInfo.totalMatches}</span> matches in{' '}
+            <span className="font-medium text-muted-foreground/80">{highlightInfo.pagesWithMatches}</span> of {scrapedResults.length} pages
+          </motion.p>
+        )}
+      </div>
+
       <Accordion type="multiple" className="space-y-2">
         {scrapedResults.map((result, idx) => (
           <motion.div
@@ -560,7 +697,7 @@ function ScrapedContentTab() {
                 <div className="relative">
                   <div className="rounded-md bg-muted/50 p-4 border border-border/30">
                     <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground font-sans">
-                      {result.content}
+                      {contentSearch.trim() ? highlightText(result.content) : result.content}
                     </pre>
                   </div>
                   <div className="absolute right-2 top-2">
@@ -931,6 +1068,8 @@ function StatsSummaryCard() {
       value: sourcesCount,
       color: 'text-emerald-600 dark:text-emerald-400',
       bg: 'bg-emerald-50 dark:bg-emerald-500/10',
+      gradient: 'from-emerald-50 to-emerald-100/50 dark:from-emerald-500/10 dark:to-emerald-500/5',
+      accentBorder: 'border-l-emerald-500',
     },
     {
       icon: FileText,
@@ -938,6 +1077,8 @@ function StatsSummaryCard() {
       value: scrapedResults.length,
       color: 'text-teal-600 dark:text-teal-400',
       bg: 'bg-teal-50 dark:bg-teal-500/10',
+      gradient: 'from-teal-50 to-teal-100/50 dark:from-teal-500/10 dark:to-teal-500/5',
+      accentBorder: 'border-l-teal-500',
     },
     {
       icon: Timer,
@@ -945,6 +1086,8 @@ function StatsSummaryCard() {
       value: formatTime(elapsedSeconds),
       color: 'text-amber-600 dark:text-amber-400',
       bg: 'bg-amber-50 dark:bg-amber-500/10',
+      gradient: 'from-amber-50 to-amber-100/50 dark:from-amber-500/10 dark:to-amber-500/5',
+      accentBorder: 'border-l-amber-500',
     },
     {
       icon: CheckCircle,
@@ -952,6 +1095,8 @@ function StatsSummaryCard() {
       value: `${completedSteps}/${steps.length}`,
       color: 'text-violet-600 dark:text-violet-400',
       bg: 'bg-violet-50 dark:bg-violet-500/10',
+      gradient: 'from-violet-50 to-violet-100/50 dark:from-violet-500/10 dark:to-violet-500/5',
+      accentBorder: 'border-l-violet-500',
     },
   ];
 
@@ -968,7 +1113,7 @@ function StatsSummaryCard() {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3, delay: idx * 0.1 }}
-          className={`flex items-center gap-2.5 rounded-xl border p-3 ${stat.bg}`}
+          className={`flex items-center gap-2.5 rounded-xl border-l-2 border border-t-0 border-r-0 border-b-0 p-3 bg-gradient-to-r ${stat.gradient} ${stat.accentBorder} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm`}
         >
           <stat.icon className={`h-4 w-4 shrink-0 ${stat.color}`} />
           <div className="min-w-0">

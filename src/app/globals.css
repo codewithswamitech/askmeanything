@@ -497,3 +497,77 @@
 .prose h3[id] {
   scroll-margin-top: 1rem;
 }
+
+/* ─── Page transition animation ────────────────────────────────────── */
+@keyframes page-transition {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.page-transition {
+  animation: page-transition 0.35s ease-out both;
+}
+
+/* ─── Header border shimmer animation ──────────────────────────────── */
+@keyframes shimmer-border {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.header-shimmer-border {
+  background: linear-gradient(90deg, oklch(0.7 0.15 162 / 0.4), oklch(0.7 0.12 180 / 0.7), oklch(0.7 0.15 162 / 0.4), oklch(0.75 0.1 155 / 0.5), oklch(0.7 0.15 162 / 0.4));
+  background-size: 200% 100%;
+  animation: shimmer-border 6s linear infinite;
+}
+
+/* ─── Footer animated gradient divider ─────────────────────────────── */
+@keyframes animated-divider {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+.animated-divider {
+  background: linear-gradient(90deg, transparent, oklch(0.7 0.15 162 / 0.5), oklch(0.7 0.12 180 / 0.6), oklch(0.7 0.15 162 / 0.5), transparent);
+  background-size: 200% 100%;
+  animation: animated-divider 8s ease-in-out infinite;
+}
+
+/* ─── Version badge glow on hover ──────────────────────────────────── */
+@keyframes version-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+  50% {
+    box-shadow: 0 0 8px 2px rgba(16, 185, 129, 0.15);
+  }
+}
+
+/* ─── Muted mesh gradient for research view ────────────────────────── */
+.mesh-gradient-muted {
+  background:
+    radial-gradient(at 25% 25%, oklch(0.88 0.05 162 / 0.18) 0%, transparent 50%),
+    radial-gradient(at 75% 20%, oklch(0.87 0.04 180 / 0.12) 0%, transparent 50%),
+    radial-gradient(at 50% 75%, oklch(0.89 0.04 155 / 0.10) 0%, transparent 50%),
+    radial-gradient(at 80% 80%, oklch(0.86 0.03 170 / 0.08) 0%, transparent 40%);
+}
+.dark .mesh-gradient-muted {
+  background:
+    radial-gradient(at 25% 25%, oklch(0.28 0.04 162 / 0.15) 0%, transparent 50%),
+    radial-gradient(at 75% 20%, oklch(0.27 0.03 180 / 0.10) 0%, transparent 50%),
+    radial-gradient(at 50% 75%, oklch(0.25 0.03 155 / 0.10) 0%, transparent 50%),
+    radial-gradient(at 80% 80%, oklch(0.26 0.02 170 / 0.07) 0%, transparent 40%);
+}

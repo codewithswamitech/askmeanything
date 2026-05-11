@@ -15,6 +15,8 @@ import {
   Minus,
   ChevronDown,
   ChevronUp,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -106,6 +108,39 @@ function getTimeAgo(timestamp: number | null): string | null {
   return `${diffHr}h ago`;
 }
 
+// ─── Step Copy Button ─────────────────────────────────────────────────────────
+
+function StepCopyButton({ content }: { content: string }) {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // silently fail
+    }
+  };
+
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        handleCopy();
+      }}
+      className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:text-muted-foreground hover:bg-muted"
+      title="Copy step content"
+    >
+      {copied ? (
+        <Check className="h-3 w-3 text-emerald-500" />
+      ) : (
+        <Copy className="h-3 w-3" />
+      )}
+    </button>
+  );
+}
+
 // ─── Step Card ────────────────────────────────────────────────────────────────
 
 function StepCard({
@@ -127,6 +162,7 @@ function StepCard({
   const emoji = STEP_EMOJIS[step.stepType] || '';
   const prevStatusRef = React.useRef(step.status);
   const [justStarted, setJustStarted] = React.useState(false);
+  const [isHovered, setIsHovered] = React.useState(false);
 
   // Detect when a step transitions to running
   React.useEffect(() => {
@@ -282,6 +318,8 @@ function StepCard({
       <Card
         className={`flex-1 cursor-pointer border ${borderColor} mb-2 transition-all duration-300 hover:shadow-md`}
         onClick={onToggleExpand}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         <CardContent className="p-3">
           <div className="flex items-center justify-between gap-2">
@@ -315,6 +353,21 @@ function StepCard({
             </div>
           </div>
 
+          {/* Content preview tooltip on hover (when not expanded) */}
+          <AnimatePresence>
+            {isHovered && step.content && !isExpanded && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.2 }}
+                className="mt-2 overflow-hidden rounded-md border border-border/40 bg-muted/60 px-3 py-2 text-xs leading-relaxed text-muted-foreground/70 shadow-sm dark:bg-muted/40"
+              >
+                <span className="block truncate">{step.content.length > 50 ? step.content.slice(0, 50) + '…' : step.content}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <AnimatePresence>
             {isExpanded && step.content && (
               <motion.div
@@ -324,8 +377,11 @@ function StepCard({
                 transition={{ duration: 0.25, ease: 'easeInOut' }}
                 className="overflow-hidden"
               >
-                <div className="mt-2 rounded-md bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">
-                  {step.content}
+                <div className="relative mt-2">
+                  <div className="rounded-md bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                    {step.content}
+                  </div>
+                  <StepCopyButton content={step.content} />
                 </div>
               </motion.div>
             )}

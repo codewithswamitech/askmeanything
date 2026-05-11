@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Menu, X, Sparkles, PanelLeftClose, PanelLeft, RotateCcw, Timer } from 'lucide-react';
+import { Menu, X, Sparkles, PanelLeftClose, PanelLeft, RotateCcw, Timer, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { QueryInput } from '@/components/research/query-input';
 import { AgentSteps } from '@/components/research/agent-steps';
@@ -11,6 +11,7 @@ import { HistoryPanel } from '@/components/research/history-panel';
 import { EmptyState } from '@/components/research/empty-state';
 import { ThemeToggle } from '@/components/research/theme-toggle';
 import { useResearchStore } from '@/lib/store';
+import { toast } from 'sonner';
 
 export default function Home() {
   const store = useResearchStore();
@@ -38,6 +39,16 @@ export default function Home() {
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
   const hasStartedResearch = useResearchStore((s) => s.currentSessionId !== null || s.isProcessing);
   const abortRef = useRef<AbortController | null>(null);
+  const [scrolled, setScrolled] = React.useState(false);
+
+  // Track scroll position for header opacity
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 8);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Step type mapping: backend → frontend store types
   const stepTypeMap: Record<string, string> = {
@@ -156,6 +167,19 @@ export default function Home() {
                   case 'done':
                     if (data.sessionId) {
                       setSessionId(data.sessionId);
+                    }
+                    if (data.status === 'completed') {
+                      toast.success('Research Complete!', {
+                        description: `Your report on '${query}' is ready to view.`,
+                        action: {
+                          label: 'View Report',
+                          onClick: () => {
+                            const reportTab = document.querySelector('[value="report"]') as HTMLElement;
+                            reportTab?.click();
+                          },
+                        },
+                        duration: 6000,
+                      });
                     }
                     break;
                 }
@@ -376,9 +400,9 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col overflow-hidden bg-background">
       {/* ─── Header ─────────────────────────────────────────────────── */}
-      <header className="relative flex h-14 shrink-0 items-center justify-between px-4 lg:px-6">
-        {/* Gradient border-bottom (emerald to teal) */}
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500/60 via-teal-400/80 to-emerald-500/60" />
+      <header className={`sticky top-0 z-50 flex h-14 shrink-0 items-center justify-between px-4 lg:px-6 transition-all duration-300 backdrop-blur-md ${scrolled ? 'bg-background/95 shadow-sm' : 'bg-background/80'}`}>
+        {/* Shimmer gradient border-bottom (emerald to teal) */}
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] header-shimmer-border" />
 
         <div className="flex items-center gap-3">
           <Button
@@ -545,6 +569,7 @@ export default function Home() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.3 }}
+                className="page-transition"
               >
                 <EmptyState />
                 <div className="px-4 pb-8 sm:px-6 lg:px-8">
@@ -560,6 +585,9 @@ export default function Home() {
                 transition={{ duration: 0.4 }}
                 className="flex flex-col"
               >
+                {/* Muted mesh gradient background for research view */}
+                <div className="pointer-events-none absolute inset-0 -z-10 mesh-gradient-muted" />
+
                 {/* Query input (sticky top) */}
                 <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-lg px-4 py-3 sm:px-6 lg:px-8">
                   <QueryInput />
@@ -585,15 +613,15 @@ export default function Home() {
 
       {/* ─── Footer ─────────────────────────────────────────────────── */}
       <footer className="group shrink-0 border-t bg-background/80 backdrop-blur-sm transition-all duration-300 hover:bg-background/95">
-        {/* Gradient separator line */}
-        <div className="h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
+        {/* Animated gradient separator line */}
+        <div className="h-px animated-divider" />
         <div className="mx-auto flex h-10 max-w-7xl items-center justify-center gap-2.5 px-4">
           <span className="h-3 w-[1px] bg-border" />
           <span className="text-[11px] text-muted-foreground/60 transition-colors duration-300 group-hover:text-muted-foreground/80">
             Powered by AI Research Agent · Built with Next.js
           </span>
           <span className="h-3 w-[1px] bg-border" />
-          <span className="inline-flex items-center rounded-full border border-border/50 bg-muted/50 px-2 py-0.5 text-[10px] font-mono text-muted-foreground/50 transition-all duration-300 group-hover:border-emerald-500/20 group-hover:bg-emerald-500/5 group-hover:text-emerald-600/70 dark:group-hover:text-emerald-400/70">
+          <span className="group/badge inline-flex items-center rounded-full border border-border/50 bg-muted/50 px-2 py-0.5 text-[10px] font-mono text-muted-foreground/50 transition-all duration-300 group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 group-hover:text-emerald-600/80 dark:group-hover:text-emerald-400/80 group-hover/badge:animate-[version-glow_2s_ease-in-out_infinite]">
             v1.0.0
           </span>
         </div>

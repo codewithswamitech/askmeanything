@@ -12,6 +12,9 @@ import {
   XCircle,
   ArrowRight,
   Trash2,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -114,15 +117,51 @@ function HistoryItemCard({
   onClick,
   isActive,
   onDelete,
+  onRename,
 }: {
   item: HistoryItem;
   onClick: () => void;
   isActive: boolean;
   onDelete: (id: string) => void;
+  onRename: (id: string, newQuery: string) => void;
 }) {
+  const [isRenaming, setIsRenaming] = React.useState(false);
+  const [renameValue, setRenameValue] = React.useState(item.query);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (isRenaming) {
+      setRenameValue(item.query);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [isRenaming, item.query]);
+
+  const handleRenameSubmit = () => {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== item.query) {
+      onRename(item.id, trimmed);
+    }
+    setIsRenaming(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleRenameSubmit();
+    } else if (e.key === 'Escape') {
+      setIsRenaming(false);
+      setRenameValue(item.query);
+    }
+  };
+
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDelete(item.id);
+  };
+
+  const handleRenameClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsRenaming(true);
   };
 
   return (
@@ -138,7 +177,7 @@ function HistoryItemCard({
             ? 'border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-500/5'
             : 'hover:border-border/80'
         }`}
-        onClick={onClick}
+        onClick={() => { if (!isRenaming) onClick(); }}
       >
         {/* Slide-in colored left border on hover */}
         <div className={`absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-emerald-500 to-teal-500 origin-top transition-transform duration-300 rounded-r ${
@@ -147,34 +186,71 @@ function HistoryItemCard({
         
         <CardContent className="p-3">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-medium leading-snug">{truncate(item.query, 50)}</p>
-            <div className="flex items-center gap-1 shrink-0">
-              {isActive && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
+            {isRenaming ? (
+              <div className="flex items-center gap-1 flex-1 min-w-0">
+                <input
+                  ref={inputRef}
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onBlur={handleRenameSubmit}
+                  className="flex-1 min-w-0 text-sm font-medium bg-transparent border-b border-emerald-500/50 outline-none py-0.5 text-foreground"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleRenameSubmit(); }}
+                  className="shrink-0 flex h-5 w-5 items-center justify-center rounded text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10"
                 >
-                  <ArrowRight className="h-3.5 w-3.5 text-emerald-500" />
-                </motion.div>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                onClick={handleDeleteClick}
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </div>
+                  <Check className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setIsRenaming(false); setRenameValue(item.query); }}
+                  className="shrink-0 flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm font-medium leading-snug">{truncate(item.query, 50)}</p>
+                <div className="flex items-center gap-0.5 shrink-0">
+                  {isActive && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                    >
+                      <ArrowRight className="h-3.5 w-3.5 text-emerald-500" />
+                    </motion.div>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400"
+                    onClick={handleRenameClick}
+                    title="Rename session"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    onClick={handleDeleteClick}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="mt-2 flex items-center gap-2 flex-wrap">
             <StatusBadge status={item.status} />
-            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-              <Clock className="h-3 w-3" />
+            <span className="inline-flex items-center gap-1 rounded-full border border-border/40 bg-muted/50 px-2 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground/70 transition-colors duration-200 group-hover:text-muted-foreground/90 group-hover:border-emerald-500/20 group-hover:bg-emerald-50/50 dark:group-hover:bg-emerald-500/10 dark:group-hover:text-emerald-400/80">
+              <Clock className="h-2.5 w-2.5" />
               {getRelativeTime(item.createdAt)}
             </span>
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-[10px] text-muted-foreground/50">
               {item.stepsCount} steps · {item.resultsCount} results
             </span>
           </div>
@@ -322,6 +398,27 @@ export function HistoryPanel() {
     [history, setHistory, refreshHistory]
   );
 
+  const handleRename = React.useCallback(
+    async (id: string, newQuery: string) => {
+      try {
+        const res = await fetch(`/api/agent/session/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: newQuery }),
+        });
+        if (res.ok) {
+          toast.success('Session renamed');
+          await refreshHistory();
+        } else {
+          toast.error('Failed to rename session');
+        }
+      } catch {
+        toast.error('Failed to rename session');
+      }
+    },
+    [refreshHistory]
+  );
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -451,6 +548,7 @@ export function HistoryPanel() {
                       isActive={currentSessionId === item.id}
                       onClick={() => handleLoadSession(item.id)}
                       onDelete={handleDeleteSingle}
+                      onRename={handleRename}
                     />
                   ))}
                 </div>
