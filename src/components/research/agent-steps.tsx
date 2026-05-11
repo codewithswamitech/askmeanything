@@ -92,6 +92,22 @@ function StatusIndicator({ status }: { status: AgentStep['status'] }) {
   }
 }
 
+// ─── Time ago helper ──────────────────────────────────────────────────────────
+
+function getTimeAgo(timestamp: number | null): string | null {
+  if (timestamp === null) return null;
+  const diffMs = Date.now() - timestamp;
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 5) return 'just now';
+  if (diffSec < 60) return `${diffSec}s ago`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  return `${diffHr}h ago`;
+}
+
+// ─── Step Card ────────────────────────────────────────────────────────────────
+
 function StepCard({
   step,
   index,
@@ -109,6 +125,18 @@ function StepCard({
 }) {
   const Icon = STEP_ICONS[step.stepType] || Circle;
   const emoji = STEP_EMOJIS[step.stepType] || '';
+  const prevStatusRef = React.useRef(step.status);
+  const [justStarted, setJustStarted] = React.useState(false);
+
+  // Detect when a step transitions to running
+  React.useEffect(() => {
+    if (step.status === 'running' && prevStatusRef.current !== 'running') {
+      setJustStarted(true);
+      const timer = setTimeout(() => setJustStarted(false), 600);
+      return () => clearTimeout(timer);
+    }
+    prevStatusRef.current = step.status;
+  }, [step.status]);
 
   // Compute step duration for completed steps
   const stepDuration = React.useMemo(() => {
@@ -122,6 +150,23 @@ function StepCard({
     const s = durationSec % 60;
     return `${m}m ${s}s`;
   }, [step.status, step.startedAt, step.completedAt]);
+
+  // Time ago for completed steps
+  const timeAgo = React.useMemo(() => {
+    if (step.status === 'completed' || step.status === 'failed') {
+      return getTimeAgo(step.completedAt);
+    }
+    return null;
+  }, [step.status, step.completedAt]);
+
+  // Refresh time ago every 30 seconds
+  const [now, setNow] = React.useState(Date.now());
+  React.useEffect(() => {
+    if (timeAgo && timeAgo !== 'just now') {
+      const interval = setInterval(() => setNow(Date.now()), 30000);
+      return () => clearInterval(interval);
+    }
+  }, [timeAgo]);
 
   const glowColor = {
     pending: 'shadow-none',
@@ -213,21 +258,19 @@ function StepCard({
           }
           className={`relative flex h-12 w-12 items-center justify-center rounded-xl border-2 ${borderColor} ${bgColor} shadow-sm transition-all duration-300 ${glowColor}`}
         >
-          <span className="text-xl" role="img" aria-label={step.stepLabel}>
+          <span
+            className={`text-xl ${justStarted ? 'step-start-anim' : ''}`}
+            role="img"
+            aria-label={step.stepLabel}
+          >
             {emoji}
           </span>
         </motion.div>
 
-        {/* Vertical connecting line between steps */}
+        {/* Vertical dotted connector line between steps */}
         {!isLast && (
           <motion.div
-            className="w-0.5 min-h-6 flex-1"
-            style={{
-              background:
-                step.status === 'completed'
-                  ? 'linear-gradient(to bottom, #10b981, rgba(16,185,129,0.2))'
-                  : 'linear-gradient(to bottom, var(--color-border), rgba(0,0,0,0.05))',
-            }}
+            className="w-0.5 min-h-6 flex-1 dotted-connector"
             initial={{ scaleY: 0, originY: 0 }}
             animate={{ scaleY: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
@@ -246,11 +289,18 @@ function StepCard({
               <Icon className="h-4 w-4 text-muted-foreground" />
               <div className="flex flex-col">
                 <span className="text-sm font-medium">{step.stepLabel}</span>
-                {stepDuration && (
-                  <span className="text-[10px] text-muted-foreground/60 tabular-nums">
-                    {stepDuration}
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {stepDuration && (
+                    <span className="text-[10px] text-muted-foreground/60 tabular-nums">
+                      {stepDuration}
+                    </span>
+                  )}
+                  {timeAgo && (
+                    <span className="text-[10px] text-muted-foreground/40">
+                      {timeAgo}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">

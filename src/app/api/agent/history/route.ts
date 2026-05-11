@@ -4,10 +4,31 @@ import { NextResponse } from "next/server";
 // ---------------------------------------------------------------------------
 // GET /api/agent/history
 // Returns all research sessions ordered by most recent, with counts
+// Automatically marks stale "running" sessions (>5 min old) as "failed"
 // ---------------------------------------------------------------------------
 
 export async function GET() {
   try {
+    // Mark stale running sessions as failed (created more than 5 minutes ago)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const staleResult = await db.researchSession.updateMany({
+      where: {
+        status: "running",
+        createdAt: {
+          lt: fiveMinutesAgo,
+        },
+      },
+      data: {
+        status: "failed",
+      },
+    });
+
+    if (staleResult.count > 0) {
+      console.log(
+        `[history] Marked ${staleResult.count} stale running session(s) as failed`
+      );
+    }
+
     const sessions = await db.researchSession.findMany({
       orderBy: { createdAt: "desc" },
       include: {

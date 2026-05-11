@@ -55,6 +55,9 @@ export interface ResearchState {
   startTime: number | null;
   elapsedSeconds: number;
 
+  // Opened sources tracker
+  openedSources: Set<string>;
+
   // Actions
   setSessionId: (id: string | null) => void;
   setQuery: (q: string) => void;
@@ -69,6 +72,8 @@ export interface ResearchState {
   startTimer: () => void;
   tickTimer: () => void;
   stopTimer: () => void;
+  setElapsedSeconds: (seconds: number) => void;
+  markSourceOpened: (url: string) => void;
 }
 
 // ─── Default steps definition ────────────────────────────────────────────────
@@ -101,6 +106,9 @@ export const useResearchStore = create<ResearchState>((set) => ({
   // Timer
   startTime: null,
   elapsedSeconds: 0,
+
+  // Opened sources
+  openedSources: new Set<string>(),
 
   setSessionId: (id) => set({ currentSessionId: id }),
 
@@ -160,6 +168,7 @@ export const useResearchStore = create<ResearchState>((set) => ({
       report: null,
       startTime: null,
       elapsedSeconds: 0,
+      openedSources: new Set<string>(),
     }),
 
   setSettings: (settings) => set({ settings }),
@@ -185,5 +194,18 @@ export const useResearchStore = create<ResearchState>((set) => ({
         elapsedSeconds: Math.floor((Date.now() - state.startTime) / 1000),
         startTime: null,
       };
+    }),
+
+  setElapsedSeconds: (seconds) =>
+    set({
+      elapsedSeconds: seconds,
+      startTime: null, // Don't start ticking
+    }),
+
+  markSourceOpened: (url) =>
+    set((state) => {
+      const next = new Set(state.openedSources);
+      next.add(url);
+      return { openedSources: next };
     }),
 }));

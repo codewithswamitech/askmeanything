@@ -63,6 +63,11 @@ export function QueryInput() {
         e.preventDefault();
         handleSubmit();
       }
+      // Ctrl/Cmd + Enter — alternative submit
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSubmit();
+      }
     },
     [handleSubmit]
   );
@@ -254,7 +259,10 @@ export function QueryInput() {
                     exit={{ opacity: 0, y: -5 }}
                     className="text-xs text-muted-foreground/60"
                   >
-                    Press{' '}
+                    <kbd className="inline-flex items-center gap-0.5 rounded-md border border-border/80 bg-muted/80 px-1.5 py-0.5 text-[11px] font-mono font-medium text-muted-foreground shadow-[0_1px_0_rgba(0,0,0,0.05)]">
+                      ⌘K
+                    </kbd>{' '}
+                    <span className="hidden sm:inline">to focus · </span>
                     <kbd className="inline-flex items-center gap-0.5 rounded-md border border-border/80 bg-muted/80 px-1.5 py-0.5 text-[11px] font-mono font-medium text-muted-foreground shadow-[0_1px_0_rgba(0,0,0,0.05)]">
                       Enter
                     </kbd>{' '}

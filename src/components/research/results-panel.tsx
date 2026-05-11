@@ -22,6 +22,9 @@ import {
   Search,
   X,
   Clock,
+  ArrowUp,
+  Eye,
+  List,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -72,6 +75,42 @@ function getFaviconUrl(url: string): string {
   } catch {
     return '';
   }
+}
+
+// ─── Report Heading Parser for TOC ────────────────────────────────────────────
+
+interface TocItem {
+  id: string;
+  text: string;
+  level: number;
+}
+
+function parseReportHeadings(markdown: string): TocItem[] {
+  const lines = markdown.split('\n');
+  const headings: TocItem[] = [];
+  let headingCounter = 0;
+
+  for (const line of lines) {
+    const match = line.match(/^(#{2,3})\s+(.+)$/);
+    if (match) {
+      const level = match[1].length;
+      const text = match[2].replace(/[*_`#]/g, '').trim();
+      const id = `report-heading-${headingCounter++}`;
+      headings.push({ id, text, level });
+    }
+  }
+  return headings;
+}
+
+function getFirstReportHeading(markdown: string): string | null {
+  const lines = markdown.split('\n');
+  for (const line of lines) {
+    const match = line.match(/^(#{1,2})\s+(.+)$/);
+    if (match) {
+      return match[2].replace(/[*_`#]/g, '').trim();
+    }
+  }
+  return null;
 }
 
 // ─── Source Category Detection ─────────────────────────────────────────────────
@@ -221,6 +260,8 @@ function SourcesTab() {
   const searchResults = useResearchStore((s) => s.searchResults);
   const scrapedResults = useResearchStore((s) => s.scrapedResults);
   const isProcessing = useResearchStore((s) => s.isProcessing);
+  const openedSources = useResearchStore((s) => s.openedSources);
+  const markSourceOpened = useResearchStore((s) => s.markSourceOpened);
   const [sourceFilter, setSourceFilter] = React.useState('');
 
   // Merge unique sources from both search and scraped results
@@ -261,6 +302,7 @@ function SourcesTab() {
   }, [allSources, sourceFilter]);
 
   const hasSources = allSources.length > 0;
+  const openedCount = allSources.filter((s) => openedSources.has(s.url)).length;
 
   // Show loading skeletons when processing and no sources yet
   if (!hasSources && isProcessing) {
@@ -338,86 +380,118 @@ function SourcesTab() {
             )}
           </AnimatePresence>
         </div>
-        {sourceFilter.trim() && (
-          <motion.p
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            className="text-[11px] text-muted-foreground/60"
-          >
-            <span className="font-medium text-muted-foreground/80">{filteredSources.length}</span> of{' '}
-            <span className="font-medium text-muted-foreground/80">{allSources.length}</span> sources match
-          </motion.p>
-        )}
+        <div className="flex items-center gap-2">
+          {sourceFilter.trim() && (
+            <motion.p
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="text-[11px] text-muted-foreground/60"
+            >
+              <span className="font-medium text-muted-foreground/80">{filteredSources.length}</span> of{' '}
+              <span className="font-medium text-muted-foreground/80">{allSources.length}</span> sources match
+            </motion.p>
+          )}
+          {openedCount > 0 && !sourceFilter.trim() && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-[11px] text-emerald-600/70 dark:text-emerald-400/70"
+            >
+              <Eye className="inline h-3 w-3 mr-0.5" />
+              <span className="font-medium">{openedCount}</span>/{allSources.length} opened
+            </motion.p>
+          )}
+        </div>
       </div>
 
       {/* Sources grid */}
       <div className="grid gap-3 sm:grid-cols-2">
       <AnimatePresence mode="popLayout">
-        {filteredSources.map((source, idx) => (
-          <motion.div
-            key={source.url}
-            initial={{ opacity: 0, scale: 0.95, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.3, delay: idx * 0.05 }}
-          >
-            <a
-              href={source.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group block"
+        {filteredSources.map((source, idx) => {
+          const isOpened = openedSources.has(source.url);
+          return (
+            <motion.div
+              key={source.url}
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3, delay: idx * 0.05 }}
             >
-              <Card className="relative h-full overflow-hidden transition-all duration-200 hover:shadow-md hover:border-border/80 hover:scale-[1.01]">
-                {/* Left accent border on hover */}
-                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-emerald-500 to-teal-500 scale-y-0 origin-top transition-transform duration-300 group-hover:scale-y-100 rounded-r" />
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    {/* Favicon */}
-                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-background transition-shadow duration-200 group-hover:shadow-sm">
-                      {getFaviconUrl(source.url) && (
-                        <img
-                          src={getFaviconUrl(source.url)}
-                          alt=""
-                          className="h-5 w-5"
-                          loading="lazy"
-                        />
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-1.5 min-w-0">
-                          <h4 className="line-clamp-2 text-sm font-medium leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                            {source.title}
-                          </h4>
-                          <SourceCategoryBadge url={source.url} />
-                        </div>
-                        <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 translate-x-0.5 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-emerald-500" />
+              <a
+                href={source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group block"
+                onClick={() => markSourceOpened(source.url)}
+              >
+                <Card className={`relative h-full overflow-hidden transition-all duration-200 hover:shadow-md hover:border-border/80 hover:scale-[1.01] ${isOpened ? 'border-emerald-500/20 bg-emerald-50/30 dark:bg-emerald-500/5' : ''}`}>
+                  {/* Left accent border on hover */}
+                  <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-emerald-500 to-teal-500 scale-y-0 origin-top transition-transform duration-300 group-hover:scale-y-100 rounded-r" />
+                  {/* Opened indicator */}
+                  {isOpened && (
+                    <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500/50" />
+                  )}
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      {/* Favicon */}
+                      <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-background transition-shadow duration-200 group-hover:shadow-sm ${isOpened ? 'border-emerald-500/30' : ''}`}>
+                        {getFaviconUrl(source.url) && (
+                          <img
+                            src={getFaviconUrl(source.url)}
+                            alt=""
+                            className="h-5 w-5"
+                            loading="lazy"
+                          />
+                        )}
                       </div>
 
-                      <p className="mt-1 truncate text-xs text-muted-foreground">
-                        {truncateUrl(source.url)}
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-1.5 min-w-0">
+                            <h4 className="line-clamp-2 text-sm font-medium leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                              {source.title}
+                            </h4>
+                            <SourceCategoryBadge url={source.url} />
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {isOpened && (
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: 'spring', stiffness: 400 }}
+                                className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/20"
+                              >
+                                <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                              </motion.div>
+                            )}
+                            <ExternalLink className="mt-0.5 h-3.5 w-3.5 text-muted-foreground opacity-0 translate-x-0.5 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-emerald-500" />
+                          </div>
+                        </div>
 
-                      {source.snippet && (
-                        <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground/80">
-                          {source.snippet}
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                          {truncateUrl(source.url)}
                         </p>
-                      )}
 
-                      {source.hostName && (
-                        <Badge variant="secondary" className="mt-2 text-[10px]">
-                          {source.hostName}
-                        </Badge>
-                      )}
+                        {source.snippet && (
+                          <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground/80">
+                            {source.snippet}
+                          </p>
+                        )}
+
+                        {source.hostName && (
+                          <Badge variant="secondary" className="mt-2 text-[10px]">
+                            {source.hostName}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </a>
-          </motion.div>
-        ))}
+                  </CardContent>
+                </Card>
+              </a>
+            </motion.div>
+          );
+        })}
       </AnimatePresence>
       </div>
     </motion.div>
@@ -502,6 +576,54 @@ function ScrapedContentTab() {
   );
 }
 
+// ─── Table of Contents (TOC) Component ────────────────────────────────────────
+
+function ReportToc({ headings, activeId }: { headings: TocItem[]; activeId: string | null }) {
+  const scrollToHeading = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  if (headings.length <= 3) return null;
+
+  return (
+    <nav className="hidden xl:block w-56 shrink-0">
+      <div className="sticky top-0">
+        <div className="flex items-center gap-1.5 mb-3">
+          <List className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            Contents
+          </span>
+        </div>
+        <div className="space-y-0.5 max-h-[480px] overflow-y-auto scrollbar-thin">
+          {headings.map((heading) => {
+            const isActive = activeId === heading.id;
+            return (
+              <button
+                key={heading.id}
+                onClick={() => scrollToHeading(heading.id)}
+                className={`block w-full text-left rounded-md px-2.5 py-1.5 text-[11px] leading-snug transition-all duration-150 hover:bg-muted/50 ${
+                  heading.level === 3 ? 'pl-6' : 'pl-2.5'
+                } ${
+                  isActive
+                    ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <span className={`block truncate ${isActive ? 'border-l-2 border-emerald-500 pl-2 -ml-0.5' : ''}`}>
+                  {heading.text}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
 // ─── Report Tab ───────────────────────────────────────────────────────────────
 
 function CopyReportButton({ report }: { report: string }) {
@@ -558,9 +680,24 @@ function ReportTab() {
     return Math.max(1, Math.ceil(wordCount / 200));
   }, [wordCount]);
 
+  // Parse headings for TOC (before early return)
+  const headings = React.useMemo(() => {
+    if (!report) return [];
+    return parseReportHeadings(report);
+  }, [report]);
+
+  // Extract first heading for report title (before early return)
+  const firstHeading = React.useMemo(() => {
+    if (!report) return null;
+    return getFirstReportHeading(report);
+  }, [report]);
+
   // Scroll progress indicator
   const [scrollProgress, setScrollProgress] = React.useState(0);
   const reportRef = React.useRef<HTMLDivElement>(null);
+
+  // IntersectionObserver for active TOC heading
+  const [activeHeadingId, setActiveHeadingId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const el = reportRef.current;
@@ -575,9 +712,50 @@ function ReportTab() {
     return () => el.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Set up IntersectionObserver for headings
+  React.useEffect(() => {
+    if (headings.length <= 3) return;
+    const el = reportRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Find the first heading that is intersecting from the top
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (visible.length > 0) {
+          // Pick the one closest to the top
+          visible.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+          setActiveHeadingId(visible[0].target.id);
+        }
+      },
+      { root: el, threshold: 0.2, rootMargin: '-10% 0px -70% 0px' }
+    );
+
+    // Wait a tick for the DOM to render
+    const timer = setTimeout(() => {
+      for (const heading of headings) {
+        const headingEl = document.getElementById(heading.id);
+        if (headingEl) observer.observe(headingEl);
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [headings]);
+
   const handleExport = (format: 'md' | 'html') => {
     if (!currentSessionId) return;
     window.open(`/api/agent/session/${currentSessionId}/export?format=${format}`, '_blank');
+  };
+
+  // Scroll to top handler
+  const scrollToTop = () => {
+    const el = reportRef.current;
+    if (el) {
+      el.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   if (!report && !isReportRunning) {
@@ -644,22 +822,79 @@ function ReportTab() {
         />
       </div>
 
+      {/* Report header with gradient title */}
+      {firstHeading && (
+        <div className="mb-4">
+          <h2 className="text-xl font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 dark:from-emerald-400 dark:via-teal-400 dark:to-emerald-400 bg-clip-text text-transparent">
+            {firstHeading}
+          </h2>
+          <div className="mt-2 h-px bg-gradient-to-r from-emerald-500/40 via-teal-500/20 to-transparent" />
+        </div>
+      )}
+
       {/* Word count & reading time + Copy report button */}
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
-          <span className="inline-flex items-center gap-1 rounded-full bg-muted/50 px-2.5 py-1 text-[11px] font-medium tabular-nums">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/50 px-3 py-1.5 text-[11px] font-semibold tabular-nums border border-border/50">
             {wordCount.toLocaleString()} words
           </span>
           <span className="text-muted-foreground/30">·</span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-muted/50 px-2.5 py-1 text-[11px] font-medium tabular-nums">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/50 px-3 py-1.5 text-[11px] font-semibold tabular-nums border border-border/50">
             <Clock className="h-3 w-3" />
             {readingTime} min read
           </span>
         </div>
         <CopyReportButton report={report || ''} />
       </div>
-      <div ref={reportRef} className="prose prose-sm prose-neutral dark:prose-invert max-w-none max-h-[560px] overflow-y-auto scrollbar-thin pr-1">
-        <ReactMarkdown>{report || ''}</ReactMarkdown>
+
+      {/* Report content with TOC sidebar */}
+      <div className="flex gap-6">
+        {/* TOC sidebar - desktop only */}
+        <ReportToc headings={headings} activeId={activeHeadingId} />
+
+        {/* Main report content */}
+        <div className="flex-1 min-w-0">
+          <div ref={reportRef} className="prose prose-sm prose-neutral dark:prose-invert max-w-none max-h-[560px] overflow-y-auto scrollbar-thin pr-1">
+            <ReactMarkdown
+              components={{
+                h2: ({ children, ...props }) => {
+                  // Find the matching heading index and assign id
+                  const text = String(children).replace(/[*_`#]/g, '').trim();
+                  const idx = headings.findIndex((h) => h.text === text && h.level === 2);
+                  const id = idx >= 0 ? headings[idx].id : undefined;
+                  return <h2 id={id} {...props}>{children}</h2>;
+                },
+                h3: ({ children, ...props }) => {
+                  const text = String(children).replace(/[*_`#]/g, '').trim();
+                  const idx = headings.findIndex((h) => h.text === text && h.level === 3);
+                  const id = idx >= 0 ? headings[idx].id : undefined;
+                  return <h3 id={id} {...props}>{children}</h3>;
+                },
+              }}
+            >
+              {report || ''}
+            </ReactMarkdown>
+          </div>
+
+          {/* Scroll to top button */}
+          <AnimatePresence>
+            {scrollProgress > 0.1 && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.5 }}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                transition={{ duration: 0.2 }}
+                onClick={scrollToTop}
+                className="fixed bottom-6 right-6 xl:right-auto xl:relative xl:bottom-auto xl:mt-2 xl:ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 transition-colors hover:bg-emerald-600 z-20"
+                title="Scroll to top"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </motion.div>
   );
@@ -758,11 +993,20 @@ export function ResultsPanel() {
   const report = useResearchStore((s) => s.report);
   const currentSessionId = useResearchStore((s) => s.currentSessionId);
   const isProcessing = useResearchStore((s) => s.isProcessing);
+  const openedSources = useResearchStore((s) => s.openedSources);
 
   const sourcesCount = new Set([
     ...searchResults.map((r) => r.url),
     ...scrapedResults.map((r) => r.url),
   ]).size;
+
+  const openedCount = React.useMemo(() => {
+    const allUrls = new Set([
+      ...searchResults.map((r) => r.url),
+      ...scrapedResults.map((r) => r.url),
+    ]);
+    return [...allUrls].filter((url) => openedSources.has(url)).length;
+  }, [searchResults, scrapedResults, openedSources]);
 
   const hasReport = report && !isProcessing;
 
@@ -797,6 +1041,11 @@ export function ResultsPanel() {
                 >
                   {sourcesCount}
                 </Badge>
+              )}
+              {openedCount > 0 && (
+                <span className="text-[9px] text-emerald-600/70 dark:text-emerald-400/70 tabular-nums ml-0.5">
+                  {openedCount} viewed
+                </span>
               )}
             </TabsTrigger>
             <TabsTrigger

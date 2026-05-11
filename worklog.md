@@ -532,3 +532,110 @@ Stage Summary:
 - Query input pulses with emerald ring during active research
 - All badges have consistent hover transitions
 - Report prose styling significantly enhanced (tables, blockquotes, code, lists, links)
+
+---
+Task ID: 7
+Agent: Development Agent
+Task: Bug Fixes, Features, and Styling Improvements
+
+Work Log:
+- Read worklog.md and all 8 source files to understand full project history and architecture
+- Implemented 2 bug fixes, 4 new features, and 3 styling improvements across 7 files
+
+### Bug Fixes
+
+**Bug 1: DURATION stat shows "0s" for loaded sessions**
+- Root cause: `loadSession` callback in page.tsx did not restore elapsed timer state from session data
+- Added `setElapsedSeconds(seconds: number)` action to Zustand store
+- In `loadSession`, after loading steps, calculates total duration from step `createdAt` timestamps (earliest to latest completed step)
+- Calls `startTimer()` then `setElapsedSeconds(duration)` to restore the timer display
+- Updated `loadSession` type signature to include optional `createdAt?: string` on steps
+
+**Bug 2: Stale "running" sessions in history**
+- Root cause: Failed/interrupted sessions remained with status "running" forever
+- In `GET /api/agent/history` route, added pre-fetch `updateMany` query that marks sessions as "failed" if they have status "running" AND were created more than 5 minutes ago
+- Logs count of stale sessions marked
+- Sessions are updated in-place before the list query returns
+
+### New Features
+
+**Feature 1: Report Table of Contents (TOC)**
+- Added `parseReportHeadings()` helper that extracts `##` and `###` headings from markdown report text
+- Created `ReportToc` component as a sticky sidebar (visible on xl+ screens, hidden on smaller)
+- TOC items are clickable and scroll to the corresponding heading using `scrollIntoView`
+- Active heading tracked via `IntersectionObserver` with root set to the report scroll container
+- Active heading styled with emerald accent color, left border indicator, and emerald background
+- H3 headings indented with extra left padding
+- TOC hidden when report has 3 or fewer headings
+
+**Feature 2: Keyboard Shortcuts**
+- Added global `keydown` event listener in page.tsx with three shortcuts:
+  - `Ctrl/Cmd + K`: Focuses the query textarea via `document.getElementById('research-query')?.focus()`
+  - `Escape`: Cancels research if processing (abort + reset), or closes mobile sidebar if open
+  - `Ctrl/Cmd + Enter`: Submits research as alternative to Enter
+- Added `⌘K` keyboard shortcut badge in query-input.tsx hint area
+- Updated query-input `handleKeyDown` to also accept `Ctrl/Cmd + Enter` for submit
+- Keyboard shortcut hint shows "⌘K to focus · Enter to start" (with "to focus" hidden on mobile)
+
+**Feature 3: Scroll-to-Top Button for Report**
+- Added floating emerald circular button at bottom-right of report container
+- Uses `scrollProgress > 0.1` threshold to appear/disappear
+- Animated entrance/exit with framer-motion (scale + opacity)
+- Button scrolls report back to top with smooth behavior
+- Positioned fixed on mobile, relative on desktop (within report flow)
+- Uses ArrowUp icon from lucide-react
+
+**Feature 4: Opened Source Tracker**
+- Added `openedSources: Set<string>` to Zustand store state
+- Added `markSourceOpened(url: string)` action that adds URL to the set
+- `resetSession()` now clears `openedSources`
+- In SourcesTab, source card links call `markSourceOpened` on click
+- Opened sources show: emerald left border accent, emerald-tinted background, animated checkmark badge
+- Sources tab shows "X/Y opened" indicator with Eye icon when sources have been opened
+- ResultsPanel Sources tab badge shows "X viewed" count
+
+### Styling Improvements
+
+**Style 1: Dark Mode Card Surface Enhancement**
+- Added `.dark .card` and `.dark [data-slot="card"]` global styles
+- Cards get subtle gradient background (`from oklch(0.205) to oklch(0.195/95%)`)
+- Added inner top highlight shadow (`inset 0 1px 0 0 oklch(white/4%)`)
+- Added subtle outer shadow for depth
+- Reduced card border opacity in dark mode (8% instead of 10%)
+
+**Style 2: Agent Steps Improvement**
+- Changed vertical connector line from solid gradient to dotted pattern using `.dotted-connector` CSS utility
+- Added `getTimeAgo()` helper that shows relative time (e.g., "12s ago", "3m ago", "1h ago")
+- Completed/failed steps now show time ago label (refreshes every 30 seconds via interval)
+- Added `.step-start-anim` CSS keyframe for rotation animation on step emoji when step starts running
+- Animation: rotate -15deg → +15deg → -5deg → 0deg with scale pulse over 0.5s
+- Uses `useRef` to detect status transitions from non-running to running state
+
+**Style 3: Report Header Enhancement**
+- Extracted first `h1` or `h2` heading from report markdown via `getFirstReportHeading()` helper
+- Displayed as large gradient title above the report content (emerald→teal→emerald gradient, `text-transparent bg-clip-text`)
+- Added subtle gradient divider below the title (emerald/40 → teal/20 → transparent)
+- Word count and reading time badges styled more prominently with border and increased padding
+- Added scroll-margin-top CSS for anchored report headings (h2[id], h3[id])
+
+### Files Modified
+- `src/lib/store.ts` — Added `openedSources`, `setElapsedSeconds`, `markSourceOpened` actions, reset integration
+- `src/app/page.tsx` — Bug 1 duration fix, keyboard shortcuts (Ctrl+K, Escape, Ctrl+Enter)
+- `src/app/api/agent/history/route.ts` — Bug 2 stale session cleanup
+- `src/components/research/results-panel.tsx` — TOC, scroll-to-top, opened source tracker, report header, heading IDs
+- `src/components/research/query-input.tsx` — ⌘K shortcut badge, Ctrl+Enter handler
+- `src/components/research/agent-steps.tsx` — Dotted connector, time ago labels, emoji spin animation
+- `src/app/globals.css` — Dark mode card surfaces, dotted connector utility, step-start-anim, scroll-margin
+
+### Verification Results
+- ESLint: Zero errors
+- TypeScript compilation: Success
+- Dev server: Running correctly, all routes functional
+- No new files created; all changes within existing project structure
+
+Stage Summary:
+- 2 critical bugs fixed (loaded session duration, stale running sessions)
+- 4 new features implemented (TOC, keyboard shortcuts, scroll-to-top, source tracker)
+- 3 styling improvements (dark mode cards, agent step polish, report header)
+- Total 7 files modified, zero new files
+- All changes verified with zero lint errors

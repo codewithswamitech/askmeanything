@@ -29,6 +29,7 @@ export default function Home() {
     startTimer,
     tickTimer,
     stopTimer,
+    setElapsedSeconds,
     elapsedSeconds,
     startTime,
   } = store;
@@ -213,7 +214,7 @@ export default function Home() {
         query: string;
         report: string | null;
         summary: string | null;
-        steps: Array<{ stepType: string; stepLabel: string; status: string; content: string | null; order: number }>;
+        steps: Array<{ stepType: string; stepLabel: string; status: string; content: string | null; order: number; createdAt?: string }>;
         results: Array<{ url: string; title: string; snippet: string | null; hostName: string | null; fullContent: string | null; scraped: boolean }>;
       };
     }) => {
@@ -231,6 +232,21 @@ export default function Home() {
           content: step.content,
           order: step.order,
         });
+      }
+
+      // Calculate total duration from step timestamps
+      const stepsWithTimestamps = sessionData.session.steps.filter(
+        (s) => s.createdAt && (s.status === 'completed' || s.status === 'failed')
+      );
+      if (stepsWithTimestamps.length >= 2) {
+        const timestamps = stepsWithTimestamps.map((s) => new Date(s.createdAt!).getTime());
+        const earliest = Math.min(...timestamps);
+        const latest = Math.max(...timestamps);
+        const durationSeconds = Math.floor((latest - earliest) / 1000);
+        if (durationSeconds > 0) {
+          startTimer();
+          setElapsedSeconds(durationSeconds);
+        }
       }
 
       // Load results
@@ -255,7 +271,7 @@ export default function Home() {
         setReport(sessionData.session.report);
       }
     },
-    [resetSession, setQuery, setSessionId, addOrUpdateStep, addSearchResult, addScrapedResult, setReport]
+    [resetSession, setQuery, setSessionId, addOrUpdateStep, addSearchResult, addScrapedResult, setReport, startTimer, setElapsedSeconds]
   );
 
   // Listen for submit events
@@ -317,6 +333,45 @@ export default function Home() {
       abortRef.current?.abort();
     };
   }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + K — Focus the query input
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('research-query')?.focus();
+        return;
+      }
+
+      // Escape — Cancel research or close mobile sidebar
+      if (e.key === 'Escape') {
+        if (isProcessing) {
+          abortRef.current?.abort();
+          resetSession();
+        } else if (sidebarOpen) {
+          setSidebarOpen(false);
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + Enter — Submit research
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        const textarea = document.getElementById('research-query') as HTMLTextAreaElement | null;
+        if (textarea) {
+          const query = textarea.value.trim();
+          if (query && !isProcessing) {
+            startResearch(query);
+          }
+        }
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isProcessing, sidebarOpen, resetSession, startResearch]);
 
   return (
     <div className="flex min-h-screen flex-col overflow-hidden bg-background">
