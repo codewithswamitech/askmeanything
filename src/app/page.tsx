@@ -9,12 +9,14 @@ import { AgentSteps } from '@/components/research/agent-steps';
 import { ResultsPanel } from '@/components/research/results-panel';
 import { HistoryPanel } from '@/components/research/history-panel';
 import { EmptyState } from '@/components/research/empty-state';
+import { ThemeToggle } from '@/components/research/theme-toggle';
 import { useResearchStore } from '@/lib/store';
 
 export default function Home() {
   const store = useResearchStore();
   const {
     isProcessing,
+    history,
     setProcessing,
     setSessionId,
     setHistory,
@@ -316,7 +318,11 @@ export default function Home() {
             </div>
             <div>
               <h1 className="text-sm font-semibold leading-none">Research Agent</h1>
-              <p className="text-[10px] text-muted-foreground">AI-Powered Web Research</p>
+              {history.length > 0 && (
+                <p className="text-[10px] text-muted-foreground">
+                  {history.length} research session{history.length !== 1 ? 's' : ''} completed
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -351,6 +357,7 @@ export default function Home() {
               New Research
             </Button>
           )}
+          <ThemeToggle />
         </div>
       </header>
 

@@ -79,3 +79,47 @@ export async function GET(
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// DELETE /api/agent/session/[id]
+// Deletes a single research session and its related steps/results
+// ---------------------------------------------------------------------------
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Session ID is required." },
+        { status: 400 }
+      );
+    }
+
+    const session = await db.researchSession.findUnique({
+      where: { id },
+    });
+
+    if (!session) {
+      return NextResponse.json(
+        { error: "Session not found." },
+        { status: 404 }
+      );
+    }
+
+    await db.researchSession.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[session] Failed to delete session:", error);
+    return NextResponse.json(
+      { error: "Failed to delete session." },
+      { status: 500 }
+    );
+  }
+}

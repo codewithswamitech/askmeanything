@@ -11,13 +11,26 @@ import {
   CheckCircle,
   XCircle,
   ArrowRight,
-  ListFilter,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 import { useResearchStore, type HistoryItem } from '@/lib/store';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -83,11 +96,18 @@ function HistoryItemCard({
   item,
   onClick,
   isActive,
+  onDelete,
 }: {
   item: HistoryItem;
   onClick: () => void;
   isActive: boolean;
+  onDelete: (id: string) => void;
 }) {
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete(item.id);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -96,7 +116,7 @@ function HistoryItemCard({
       transition={{ duration: 0.25 }}
     >
       <Card
-        className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
+        className={`group cursor-pointer transition-all duration-200 hover:shadow-md ${
           isActive
             ? 'border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-500/5'
             : 'hover:border-border'
@@ -106,15 +126,24 @@ function HistoryItemCard({
         <CardContent className="p-3">
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm font-medium leading-snug">{truncate(item.query, 50)}</p>
-            {isActive && (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="shrink-0"
+            <div className="flex items-center gap-1 shrink-0">
+              {isActive && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                >
+                  <ArrowRight className="h-3.5 w-3.5 text-emerald-500" />
+                </motion.div>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                onClick={handleDeleteClick}
               >
-                <ArrowRight className="h-3.5 w-3.5 text-emerald-500" />
-              </motion.div>
-            )}
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
 
           <div className="mt-2 flex items-center gap-2 flex-wrap">
@@ -143,9 +172,11 @@ function HistoryItemCard({
 
 export function HistoryPanel() {
   const history = useResearchStore((s) => s.history);
+  const setHistory = useResearchStore((s) => s.setHistory);
   const currentSessionId = useResearchStore((s) => s.currentSessionId);
   const [filter, setFilter] = React.useState('');
   const [isLoadingSession, setIsLoadingSession] = React.useState<string | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = React.useState(false);
 
   const filteredHistory = React.useMemo(() => {
     if (!filter.trim()) return history;
@@ -156,6 +187,18 @@ export function HistoryPanel() {
         item.summary?.toLowerCase().includes(q)
     );
   }, [history, filter]);
+
+  const refreshHistory = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/agent/history');
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data.sessions || []);
+      }
+    } catch {
+      // silently fail
+    }
+  }, [setHistory]);
 
   const handleLoadSession = React.useCallback(
     async (id: string) => {
@@ -171,12 +214,53 @@ export function HistoryPanel() {
           );
         }
       } catch {
-        // Silently fail — could add toast notification here
+        // Silently fail
       } finally {
         setIsLoadingSession(null);
       }
     },
     [isLoadingSession, currentSessionId]
+  );
+
+  const handleDeleteAll = React.useCallback(async () => {
+    setIsDeletingAll(true);
+    try {
+      const res = await fetch('/api/agent/history', { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('All history cleared', {
+          description: 'All research sessions have been deleted.',
+        });
+        await refreshHistory();
+      } else {
+        toast.error('Failed to clear history');
+      }
+    } catch {
+      toast.error('Failed to clear history');
+    } finally {
+      setIsDeletingAll(false);
+    }
+  }, [refreshHistory]);
+
+  const handleDeleteSingle = React.useCallback(
+    async (id: string) => {
+      // Optimistically remove from local state
+      setHistory(history.filter((item) => item.id !== id));
+
+      try {
+        const res = await fetch(`/api/agent/session/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          toast.success('Session deleted');
+        } else {
+          toast.error('Failed to delete session');
+          // Revert optimistic update on failure
+          await refreshHistory();
+        }
+      } catch {
+        toast.error('Failed to delete session');
+        await refreshHistory();
+      }
+    },
+    [history, setHistory, refreshHistory]
   );
 
   return (
@@ -186,9 +270,40 @@ export function HistoryPanel() {
         <History className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold">History</h3>
         {history.length > 0 && (
-          <Badge variant="secondary" className="ml-auto text-[10px]">
-            {history.length}
-          </Badge>
+          <>
+            <Badge variant="secondary" className="ml-auto text-[10px]">
+              {history.length}
+            </Badge>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  disabled={isDeletingAll}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear all history?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete all {history.length} research session(s). This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteAll}
+                    className="bg-destructive text-white hover:bg-destructive/90"
+                  >
+                    {isDeletingAll ? 'Deleting...' : 'Delete all'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
         )}
       </div>
 
@@ -256,6 +371,7 @@ export function HistoryPanel() {
                 item={item}
                 isActive={currentSessionId === item.id}
                 onClick={() => handleLoadSession(item.id)}
+                onDelete={handleDeleteSingle}
               />
             ))}
           </div>

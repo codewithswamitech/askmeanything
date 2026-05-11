@@ -13,6 +13,7 @@ import {
   Check,
   Loader2,
   SearchX,
+  Download,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +32,12 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useResearchStore } from '@/lib/store';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -283,9 +290,15 @@ function ScrapedContentTab() {
 function ReportTab() {
   const report = useResearchStore((s) => s.report);
   const isProcessing = useResearchStore((s) => s.isProcessing);
+  const currentSessionId = useResearchStore((s) => s.currentSessionId);
   const steps = useResearchStore((s) => s.steps);
   const reportStep = steps.find((s) => s.stepType === 'report');
   const isReportRunning = reportStep?.status === 'running';
+
+  const handleExport = (format: 'md' | 'html') => {
+    if (!currentSessionId) return;
+    window.open(`/api/agent/session/${currentSessionId}/export?format=${format}`, '_blank');
+  };
 
   if (!report && !isReportRunning) {
     return (
@@ -349,11 +362,20 @@ export function ResultsPanel() {
   const searchResults = useResearchStore((s) => s.searchResults);
   const scrapedResults = useResearchStore((s) => s.scrapedResults);
   const report = useResearchStore((s) => s.report);
+  const currentSessionId = useResearchStore((s) => s.currentSessionId);
+  const isProcessing = useResearchStore((s) => s.isProcessing);
 
   const sourcesCount = new Set([
     ...searchResults.map((r) => r.url),
     ...scrapedResults.map((r) => r.url),
   ]).size;
+
+  const hasReport = report && !isProcessing;
+
+  const handleExport = (format: 'md' | 'html') => {
+    if (!currentSessionId) return;
+    window.open(`/api/agent/session/${currentSessionId}/export?format=${format}`, '_blank');
+  };
 
   return (
     <motion.div
@@ -362,47 +384,70 @@ export function ResultsPanel() {
       transition={{ duration: 0.5, delay: 0.2 }}
     >
       <Tabs defaultValue="sources" className="w-full">
-        <TabsList className="w-full justify-start bg-muted/50">
-          <TabsTrigger value="sources" className="gap-1.5 data-[state=active]:bg-background">
-            <Globe className="h-3.5 w-3.5" />
-            Sources
-            {sourcesCount > 0 && (
-              <Badge
-                variant="secondary"
-                className="ml-1 h-5 min-w-5 rounded-full px-1.5 text-[10px]"
-              >
-                {sourcesCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="scraped" className="gap-1.5 data-[state=active]:bg-background">
-            <FileText className="h-3.5 w-3.5" />
-            Scraped
-            {scrapedResults.length > 0 && (
-              <Badge
-                variant="secondary"
-                className="ml-1 h-5 min-w-5 rounded-full px-1.5 text-[10px]"
-              >
-                {scrapedResults.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="report" className="gap-1.5 data-[state=active]:bg-background">
-            <BookOpen className="h-3.5 w-3.5" />
-            Report
-            {report && (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 400 }}
-              >
-                <Badge className="ml-1 h-5 min-w-5 rounded-full bg-emerald-500 px-1.5 text-[10px] text-white hover:bg-emerald-500">
-                  ✓
+        <div className="flex items-center justify-between gap-2">
+          <TabsList className="w-full justify-start bg-muted/50">
+            <TabsTrigger value="sources" className="gap-1.5 data-[state=active]:bg-background">
+              <Globe className="h-3.5 w-3.5" />
+              Sources
+              {sourcesCount > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="ml-1 h-5 min-w-5 rounded-full px-1.5 text-[10px]"
+                >
+                  {sourcesCount}
                 </Badge>
-              </motion.div>
-            )}
-          </TabsTrigger>
-        </TabsList>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="scraped" className="gap-1.5 data-[state=active]:bg-background">
+              <FileText className="h-3.5 w-3.5" />
+              Scraped
+              {scrapedResults.length > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="ml-1 h-5 min-w-5 rounded-full px-1.5 text-[10px]"
+                >
+                  {scrapedResults.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="report" className="gap-1.5 data-[state=active]:bg-background">
+              <BookOpen className="h-3.5 w-3.5" />
+              Report
+              {hasReport && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 400 }}
+                >
+                  <Badge className="ml-1 h-5 min-w-5 rounded-full bg-emerald-500 px-1.5 text-[10px] text-white hover:bg-emerald-500">
+                    ✓
+                  </Badge>
+                </motion.div>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          {hasReport && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0">
+                  <Download className="h-3.5 w-3.5" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleExport('md')}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Download Markdown
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('html')}>
+                  <FileOutput className="mr-2 h-4 w-4" />
+                  Download HTML
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
 
         <ScrollArea className="mt-4 max-h-[600px]">
           <TabsContent value="sources" className="mt-0">

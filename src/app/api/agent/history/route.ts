@@ -39,3 +39,26 @@ export async function GET() {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// DELETE /api/agent/history
+// Deletes all research sessions
+// ---------------------------------------------------------------------------
+
+export async function DELETE() {
+  try {
+    const result = await db.researchSession.deleteMany({});
+
+    return NextResponse.json({
+      success: true,
+      message: "All research history cleared.",
+      deletedCount: result.count,
+    });
+  } catch (error) {
+    console.error("[history] Failed to delete sessions:", error);
+    return NextResponse.json(
+      { error: "Failed to delete research history." },
+      { status: 500 }
+    );
+  }
+}

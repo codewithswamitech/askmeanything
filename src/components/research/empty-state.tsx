@@ -54,6 +54,14 @@ const EXAMPLE_QUERIES = [
     icon: '🚗',
     text: 'Analyze recent trends in electric vehicle market',
   },
+  {
+    icon: '🔬',
+    text: 'What are the latest breakthroughs in CRISPR gene editing',
+  },
+  {
+    icon: '📈',
+    text: 'Analyze the global semiconductor chip shortage',
+  },
 ];
 
 // ─── Animation variants ───────────────────────────────────────────────────────
@@ -100,20 +108,46 @@ export function EmptyState() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="flex min-h-[60vh] flex-col items-center justify-center px-4 py-12"
+      className="relative flex min-h-[60vh] flex-col items-center justify-center px-4 py-12"
     >
+      {/* Background gradient */}
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-gradient-radial from-emerald-100/40 via-emerald-50/20 to-transparent dark:from-emerald-900/20 dark:via-emerald-950/10 blur-3xl" />
+      </div>
+
+      {/* Dot pattern overlay */}
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.03] dark:opacity-0"
+        style={{
+          backgroundImage: 'radial-gradient(circle, oklch(0.3 0 0) 1px, transparent 1px)',
+          backgroundSize: '24px 24px',
+        }}
+      />
+
       {/* Hero illustration */}
       <motion.div variants={itemVariants} className="relative mb-10">
-        {/* Background glow */}
+        {/* Background glow with shimmer */}
         <div className="absolute inset-0 -z-10 flex items-center justify-center">
-          <div className="h-40 w-40 rounded-full bg-gradient-to-br from-emerald-200/40 to-teal-200/40 blur-3xl dark:from-emerald-500/20 dark:to-teal-500/20" />
+          <motion.div
+            className="h-40 w-40 rounded-full bg-gradient-to-br from-emerald-200/40 to-teal-200/40 blur-3xl dark:from-emerald-500/20 dark:to-teal-500/20"
+            animate={{
+              scale: [1, 1.08, 1],
+              opacity: [0.6, 1, 0.6],
+            }}
+            transition={{
+              duration: 4,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          />
         </div>
 
         <div className="relative flex h-24 w-24 items-center justify-center rounded-3xl border border-border/50 bg-card shadow-xl">
-          {/* Central icon */}
+          {/* Central icon with shimmer pulse */}
           <motion.div
             animate={{
               y: [0, -4, 0],
+              scale: [1, 1.05, 1],
             }}
             transition={{
               duration: 3,
@@ -121,7 +155,23 @@ export function EmptyState() {
               ease: 'easeInOut',
             }}
           >
-            <Sparkles className="h-10 w-10 text-emerald-500" />
+            <motion.div
+              className="relative"
+              animate={{
+                filter: [
+                  'brightness(1) drop-shadow(0 0 0px rgba(16,185,129,0))',
+                  'brightness(1.15) drop-shadow(0 0 12px rgba(16,185,129,0.4))',
+                  'brightness(1) drop-shadow(0 0 0px rgba(16,185,129,0))',
+                ],
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+            >
+              <Sparkles className="h-10 w-10 text-emerald-500" />
+            </motion.div>
           </motion.div>
 
           {/* Floating orbit icons */}
@@ -185,7 +235,7 @@ export function EmptyState() {
         </p>
       </motion.div>
 
-      {/* Feature cards */}
+      {/* Feature cards with glassmorphism */}
       <motion.div
         variants={itemVariants}
         className="mt-8 mb-12 grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3"
@@ -194,9 +244,9 @@ export function EmptyState() {
           <motion.div
             key={feature.title}
             variants={itemVariants}
-            className="flex flex-col items-center gap-2 rounded-xl border border-border/50 bg-card/50 p-4 text-center backdrop-blur-sm"
+            className="relative flex flex-col items-center gap-2 rounded-xl border border-white/20 bg-white/40 p-4 text-center shadow-sm backdrop-blur-md dark:border-white/5 dark:bg-white/5 dark:backdrop-blur-md"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/80 backdrop-blur-sm">
               <feature.icon className="h-5 w-5 text-foreground" />
             </div>
             <h3 className="text-sm font-semibold">{feature.title}</h3>
@@ -222,9 +272,9 @@ export function EmptyState() {
               key={idx}
               variants={itemVariants}
               onClick={() => handleExampleClick(example.text)}
-              className="group flex items-center gap-3 rounded-xl border border-border/50 bg-card/50 p-3 text-left transition-all duration-200 hover:border-border hover:bg-card hover:shadow-sm"
+              className="group flex items-center gap-3 rounded-xl border border-white/20 bg-white/40 p-3 text-left backdrop-blur-md transition-all duration-200 hover:border-border hover:bg-white/60 hover:shadow-sm dark:border-white/5 dark:bg-white/5 dark:hover:bg-white/10 dark:backdrop-blur-md"
             >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-base">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/80 text-base backdrop-blur-sm">
                 {example.icon}
               </span>
               <span className="flex-1 text-sm text-muted-foreground group-hover:text-foreground transition-colors">
