@@ -41,6 +41,13 @@ export interface ResearchSettings {
   pagesToScrape: number;
 }
 
+export interface ClarificationQuestion {
+  id: string;
+  question: string;
+  type: "single_select" | "multi_select" | "text";
+  options?: string[];
+}
+
 export interface ResearchState {
   currentSessionId: string | null;
   query: string;
@@ -51,6 +58,10 @@ export interface ResearchState {
   report: string | null;
   history: HistoryItem[];
   settings: ResearchSettings;
+
+  // Clarification state
+  clarificationQuestions: ClarificationQuestion[];
+  userAnswers: Record<string, string | string[]>;
 
   // Elapsed timer
   startTime: number | null;
@@ -91,12 +102,14 @@ export interface ResearchState {
   setSessionNotes: (notes: string) => void;
   setFullscreenReport: (v: boolean) => void;
   setShowCelebration: (v: boolean) => void;
+  setClarificationQuestions: (questions: ClarificationQuestion[]) => void;
+  setUserAnswers: (answers: Record<string, string | string[]>) => void;
 }
 
 // ─── Default steps definition ────────────────────────────────────────────────
 
 const DEFAULT_STEPS: AgentStep[] = [
-  { stepType: 'understand', stepLabel: 'Understand', status: 'pending', content: null, order: 0, startedAt: null, completedAt: null },
+  { stepType: 'understand', stepLabel: 'Understand Query', status: 'pending', content: null, order: 0, startedAt: null, completedAt: null },
   { stepType: 'plan', stepLabel: 'Plan', status: 'pending', content: null, order: 1, startedAt: null, completedAt: null },
   { stepType: 'explore', stepLabel: 'Explore', status: 'pending', content: null, order: 2, startedAt: null, completedAt: null },
   { stepType: 'scrape', stepLabel: 'Scrape', status: 'pending', content: null, order: 3, startedAt: null, completedAt: null },
@@ -119,6 +132,10 @@ export const useResearchStore = create<ResearchState>((set) => ({
     maxSources: 10,
     pagesToScrape: 5,
   },
+
+  // Clarification state
+  clarificationQuestions: [],
+  userAnswers: {},
 
   // Timer
   startTime: null,
@@ -202,6 +219,8 @@ export const useResearchStore = create<ResearchState>((set) => ({
       sessionNotes: '',
       isFullscreenReport: false,
       showCelebration: false,
+      clarificationQuestions: [],
+      userAnswers: {},
     }),
 
   setSettings: (settings) => set({ settings }),
@@ -258,4 +277,8 @@ export const useResearchStore = create<ResearchState>((set) => ({
   setFullscreenReport: (v) => set({ isFullscreenReport: v }),
 
   setShowCelebration: (v) => set({ showCelebration: v }),
+
+  setClarificationQuestions: (questions) => set({ clarificationQuestions: questions }),
+
+  setUserAnswers: (answers) => set({ userAnswers: answers }),
 }));

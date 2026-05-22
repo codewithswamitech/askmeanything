@@ -95,7 +95,12 @@ function Carousel({
 
   React.useEffect(() => {
     if (!api) return
-    onSelect(api)
+    
+    // Defer the initial selection state update to avoid setting state during render
+    queueMicrotask(() => {
+      onSelect(api)
+    })
+    
     api.on("reInit", onSelect)
     api.on("select", onSelect)
 
