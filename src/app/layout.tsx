@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AskMeAnything - AI Research Agent Powered by Drag-N-Fly",
+  title: "KnowYourLeads - AI Research Agent Powered by Drag-N-Fly",
   description: "AI-powered web research agent that plans, searches, scrapes, validates, and writes a cited report.",
 };
 

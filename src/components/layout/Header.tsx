@@ -23,7 +23,7 @@ export function Header() {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0F3B7A] text-white">
           <span className="font-bold">A</span>
         </div>
-        <span className="font-semibold text-slate-900">AskMeAnything</span>
+        <span className="font-semibold text-slate-900">KnowYourLeads</span>
       </div>
       
       <div className="hidden lg:flex items-center gap-4 flex-1" />

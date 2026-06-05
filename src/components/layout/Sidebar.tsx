@@ -23,7 +23,7 @@ export function Sidebar() {
             <span className="font-bold text-lg">A</span>
           </div>
           <div className="flex flex-col">
-            <span className="font-bold text-slate-900 leading-none tracking-tight">AskMeAnything</span>
+            <span className="font-bold text-slate-900 leading-none tracking-tight">KnowYourLeads</span>
             <span className="text-[10px] text-slate-500 leading-none mt-1">AI research agent</span>
              <span className="text-[10px] text-slate-500 leading-none mt-1">powered by Drag-N-Fly</span>
           </div>
