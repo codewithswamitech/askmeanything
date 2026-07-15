@@ -20,7 +20,7 @@ async def main():
     try:
         build_info = await Template.build(
             template, 
-            "askmeanything-app", 
+            "knowyourlead-app", 
             cpu_count=2, 
             memory_mb=2048,
             on_build_logs=default_build_logger()

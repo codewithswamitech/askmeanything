@@ -18,9 +18,13 @@ interface ClarificationPanelProps {
   onSkip: () => void;
 }
 
+// An option like "Other (please specify)" / "Other" that should reveal a free-text input.
+const isOtherOption = (opt: string) => /^\s*other\b/i.test(opt) || /please specify/i.test(opt);
+
 export function ClarificationPanel({ questions, sessionId, onSubmit, onSkip }: ClarificationPanelProps) {
   const [answers, setAnswers] = React.useState<Record<string, string | string[]>>({});
   const [textInput, setTextInput] = React.useState<Record<string, string>>({});
+  const [otherInput, setOtherInput] = React.useState<Record<string, string>>({});
 
   const handleSelect = (qId: string, option: string, isMulti: boolean) => {
     setAnswers((prev) => {
@@ -34,17 +38,47 @@ export function ClarificationPanel({ questions, sessionId, onSubmit, onSkip }: C
     });
   };
 
+  // Is the "Other" option currently selected for this question?
+  const isOtherSelected = (q: ClarificationQuestion): boolean => {
+    const sel = answers[q.id];
+    if (Array.isArray(sel)) return sel.some(isOtherOption);
+    return typeof sel === 'string' && isOtherOption(sel);
+  };
+
   const handleSubmit = () => {
     const finalAnswers: Record<string, string | string[]> = { ...answers };
     for (const q of questions) {
-      if (q.type === 'text' && textInput[q.id]) {
-        finalAnswers[q.id] = textInput[q.id];
+      if (q.type === 'text') {
+        if (textInput[q.id]) finalAnswers[q.id] = textInput[q.id];
+        continue;
+      }
+      // Substitute the literal "Other" choice with the user's typed value.
+      const custom = otherInput[q.id]?.trim();
+      const sel = finalAnswers[q.id];
+      if (custom && Array.isArray(sel)) {
+        finalAnswers[q.id] = sel.map((o) => (isOtherOption(o) ? custom : o));
+      } else if (custom && typeof sel === 'string' && isOtherOption(sel)) {
+        finalAnswers[q.id] = custom;
       }
     }
     onSubmit(sessionId, finalAnswers);
   };
 
-  const hasAnyAnswer = Object.keys(answers).length > 0 || Object.keys(textInput).some(k => textInput[k].trim());
+  // A selected "Other" with no typed value isn't a valid answer.
+  const isQuestionAnswered = (q: ClarificationQuestion): boolean => {
+    if (q.type === 'text') return !!textInput[q.id]?.trim();
+    const sel = answers[q.id];
+    const hasSelection = Array.isArray(sel) ? sel.length > 0 : !!sel;
+    if (!hasSelection) return false;
+    if (isOtherSelected(q)) {
+      const arr = Array.isArray(sel) ? sel : [];
+      const onlyOther = Array.isArray(sel) ? arr.every(isOtherOption) : true;
+      if (onlyOther && !otherInput[q.id]?.trim()) return false;
+    }
+    return true;
+  };
+
+  const hasAnyAnswer = questions.some(isQuestionAnswered);
 
   return (
     <div className="max-w-2xl mx-auto py-8">
@@ -97,6 +131,17 @@ export function ClarificationPanel({ questions, sessionId, onSubmit, onSkip }: C
                     </button>
                   ))}
                 </div>
+              )}
+
+              {(q.type === 'single_select' || q.type === 'multi_select') && q.options && isOtherSelected(q) && (
+                <input
+                  type="text"
+                  autoFocus
+                  value={otherInput[q.id] || ''}
+                  onChange={(e) => setOtherInput((p) => ({ ...p, [q.id]: e.target.value }))}
+                  placeholder="Please specify..."
+                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#0F3B7A]/20 focus:border-[#0F3B7A]"
+                />
               )}
 
               {q.type === 'text' && (

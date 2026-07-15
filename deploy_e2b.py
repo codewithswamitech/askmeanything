@@ -78,7 +78,7 @@ async def main():
 
     url = f"https://{sandbox.get_host(8080)}"
     print(f"\n✅ App is deployed and running!")
-    print(f"🌍 Access your AskMeAnything app at: {url}")
+    print(f"🌍 Access your KnowYourLead app at: {url}")
     print(f"🆔 Sandbox ID: {sandbox.sandbox_id}")
     
     print("\nPress Ctrl+C to stop and kill the sandbox.")

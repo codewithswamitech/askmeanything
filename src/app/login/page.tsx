@@ -41,7 +41,7 @@ export default function LoginPage() {
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0F3B7A] text-white mb-4 shadow-lg">
             <span className="font-bold text-2xl">A</span>
           </div>
-          <h1 className="text-2xl font-bold text-[#0F3B7A]">AskMeAnything</h1>
+          <h1 className="text-2xl font-bold text-[#0F3B7A]">KnowYourLead</h1>
           <p className="text-sm text-slate-500 mt-1">Sign in to your research workspace</p>
         </div>
 
@@ -53,7 +53,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@askmeanything.ai"
+                placeholder="admin@knowyourLead.ai"
                 required
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0F3B7A]/20 focus:border-[#0F3B7A] text-sm"
               />

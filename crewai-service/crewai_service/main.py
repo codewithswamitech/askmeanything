@@ -1,3 +1,9 @@
+# Use the OS trust store (macOS keychain / Windows store / system CAs) for TLS
+# verification so the service works behind corporate TLS-inspecting proxies whose
+# private root CA is not in certifi's bundle. Must run before any TLS client is created.
+import truststore
+truststore.inject_into_ssl()
+
 import json
 import logging
 from contextlib import asynccontextmanager

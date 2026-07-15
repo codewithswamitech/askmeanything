@@ -11,8 +11,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
-    "e2b:build:dev": "cd askmeanything-app && npx tsx build.dev.ts",
-    "e2b:build:prod": "cd askmeanything-app && npx tsx build.prod.ts"
+    "e2b:build:dev": "cd knowyourlead-app && npx tsx build.dev.ts",
+    "e2b:build:prod": "cd knowyourlead-app && npx tsx build.prod.ts"  
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

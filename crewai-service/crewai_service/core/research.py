@@ -1,9 +1,11 @@
+import asyncio
 import json
 import logging
 from typing import AsyncGenerator, Dict, Any, List, Optional
 from datetime import datetime
 from urllib.parse import urlparse
 from openai import AsyncOpenAI
+from crewai_service.core.llm import get_async_llm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -11,6 +13,7 @@ from crewai_service.core.config import settings
 from crewai_service.core.cache import get_redis
 from crewai_service.core.tools import cached_tavily_search, batch_scrape
 from crewai_service.agents.crew import create_research_crew
+from crewai_service.models.models import ResearchSession, AgentStep, SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +74,7 @@ async def generate_clarification(
         user_content += f"\n\nPRE-SEARCH RESULTS (top results from a quick web search):\n{results_summary}\n\nUse these results to detect if multiple different people/companies share the same name. If you see different entities, ask the user to disambiguate."
 
     response = await llm.chat.completions.create(
-        model=settings.LLM_MODEL,
+        model=settings.chat_model,
         messages=[
             {"role": "assistant", "content": CLARIFICATION_PROMPT},
             {"role": "user", "content": user_content},
@@ -104,7 +107,6 @@ async def run_deep_research(
 
     session_id = existing_session_id
     if db_session and not session_id:
-        from crewai_service.models.models import ResearchSession, AgentStep, SearchResult
         session = ResearchSession(
             query=query,
             user_id=user_id,
@@ -116,7 +118,6 @@ async def run_deep_research(
         session_id = str(session.id)
 
     if db_session and session_id and existing_session_id:
-        from crewai_service.models.models import ResearchSession
         session_obj = await db_session.get(ResearchSession, session_id)
         if session_obj:
             session_obj.status = "running"
@@ -125,11 +126,7 @@ async def run_deep_research(
 
     yield {"event": "session_created", "data": {"sessionId": session_id, "query": query}}
 
-    llm = AsyncOpenAI(
-        base_url=settings.LLM_BASE_URL,
-        api_key=settings.LLM_API_KEY,
-        timeout=60.0,
-    )
+    llm = get_async_llm(timeout=60.0)
 
     context = query
     if user_answers:
@@ -192,7 +189,6 @@ async def run_deep_research(
         
         if clarification and clarification.get("needs_clarification") and clarification.get("questions"):
             if db_session and session_id:
-                from crewai_service.models.models import ResearchSession
                 session_obj = await db_session.get(ResearchSession, session_id)
                 if session_obj:
                     session_obj.status = "pending"
@@ -334,7 +330,7 @@ Respond with ONLY a JSON array of additional search queries. If research is suff
 
             try:
                 gap_response = await llm.chat.completions.create(
-                    model=settings.LLM_MODEL,
+                    model=settings.chat_model,
                     messages=[
                         {"role": "assistant", "content": "You are a research gap analyst. Respond only with JSON arrays."},
                         {"role": "user", "content": gap_prompt},
@@ -429,7 +425,7 @@ You are a senior research analyst. Write a comprehensive, publication-quality ma
     report = ""
     try:
         report_response = await llm.chat.completions.create(
-            model=settings.LLM_MODEL,
+            model=settings.chat_model,
             messages=[
                 {"role": "assistant", "content": "You are a senior research writer. Write comprehensive, well-cited reports."},
                 {"role": "user", "content": report_prompt},
@@ -446,7 +442,6 @@ You are a senior research analyst. Write a comprehensive, publication-quality ma
     # ── Save report & mark session complete ──
     if db_session and session_id:
         try:
-            from crewai_service.models.models import ResearchSession
             session_obj = await db_session.get(ResearchSession, session_id)
             if session_obj:
                 session_obj.status = "completed"
@@ -468,7 +463,6 @@ async def regenerate_report_only(
     session_id: str,
     db_session: AsyncSession,
 ) -> AsyncGenerator[Dict[str, Any], None]:
-    from crewai_service.models.models import ResearchSession
     
     query = select(ResearchSession).options(
         selectinload(ResearchSession.search_results)
@@ -481,10 +475,7 @@ async def regenerate_report_only(
         yield {"event": "error", "data": {"message": "Session not found"}}
         return
 
-    llm = AsyncOpenAI(
-        base_url=settings.LLM_BASE_URL,
-        api_key=settings.LLM_API_KEY,
-    )
+    llm = get_async_llm()
 
     context = session_obj.query
     if session_obj.user_answers:
@@ -547,7 +538,7 @@ You are a senior research analyst. Write a comprehensive, publication-quality ma
     report = ""
     try:
         report_response = await llm.chat.completions.create(
-            model=settings.LLM_MODEL,
+            model=settings.chat_model,
             messages=[
                 {"role": "assistant", "content": "You are a senior research writer. Write comprehensive, well-cited reports."},
                 {"role": "user", "content": report_prompt},

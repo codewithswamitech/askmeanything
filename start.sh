@@ -33,7 +33,7 @@ TAVILY_API_KEY='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' \
 LLM_BASE_URL='http://127.0.0.1:3005/v1' \
 LLM_MODEL='gpt-4o' \
 CORS_ORIGINS='*' \
-AUTH_EMAIL='admin@askmeanything.ai' \
+AUTH_EMAIL='admin@knowyourlead.ai' \
 AUTH_PASSWORD='Omkar@2210' \
 AUTH_DISPLAY_NAME='Admin' \
   uvicorn crewai_service.main:app --host 0.0.0.0 --port 8000 > /tmp/crewai.log 2>&1 &

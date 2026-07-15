@@ -1,3 +1,4 @@
+import os
 import json
 from typing import Optional
 from crewai import Agent, Task, Crew, Process, LLM
@@ -5,6 +6,18 @@ from crewai_service.core.config import settings
 
 
 def get_llm(temperature: float = 0.3) -> LLM:
+    if settings.use_azure:
+        # crewai/litellm route Azure by deployment name and read these env vars.
+        os.environ["AZURE_API_KEY"] = settings.AZURE_OPENAI_API_KEY
+        os.environ["AZURE_API_BASE"] = settings.AZURE_OPENAI_ENDPOINT
+        os.environ["AZURE_API_VERSION"] = settings.AZURE_OPENAI_API_VERSION
+        return LLM(
+            model=f"azure/{settings.AZURE_OPENAI_DEPLOYMENT}",
+            api_key=settings.AZURE_OPENAI_API_KEY,
+            base_url=settings.AZURE_OPENAI_ENDPOINT,
+            api_version=settings.AZURE_OPENAI_API_VERSION,
+            temperature=temperature,
+        )
     return LLM(
         model=f"openai/{settings.LLM_MODEL}",
         base_url=settings.LLM_BASE_URL,
