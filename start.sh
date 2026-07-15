@@ -40,7 +40,7 @@ AUTH_DISPLAY_NAME='Admin' \
 echo "[start.sh] crewai FastAPI service starting on port 8000..."
 sleep 5
 
-# 7. Start Next.js standalone on port 8080 (foreground — keeps sandbox alive)
+# 7. Start Next.js standalone on port 8080 (foreground — keeps the container alive)
 echo "[start.sh] Starting Next.js on port 8080..."
 cd /app
 CREWAI_SERVICE_URL='http://127.0.0.1:8000' \
