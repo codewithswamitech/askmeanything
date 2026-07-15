@@ -1,0 +1,27 @@
+# Production image for the crewai FastAPI service.
+# Used by Render (see render.yaml). Talks to Azure OpenAI directly (no local
+# azure-proxy) when AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT are set.
+FROM python:3.12-slim
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY crewai-service/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY crewai-service/ ./
+
+# Drop privileges.
+RUN useradd -m app && chown -R app:app /app
+USER app
+
+EXPOSE 8000
+# Tables are created on startup (init_db in the lifespan handler); the auth user
+# is created lazily on first successful login.
+CMD ["sh", "-c", "uvicorn crewai_service.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
