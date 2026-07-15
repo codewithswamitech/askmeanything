@@ -103,26 +103,3 @@ async def batch_scrape(urls: List[str], concurrency: int = 5) -> List[Dict[str, 
     
     tasks = [_scrape(u) for u in urls]
     return await asyncio.gather(*tasks)
-
-
-async def cached_llm_call(
-    messages: List[Dict[str, str]],
-    llm_client,
-) -> str:
-    cache_key = _cache_key("llm", json.dumps(messages, sort_keys=True))
-    
-    redis = await get_redis()
-    cached = await redis.get(cache_key)
-    if cached:
-        logger.info("Cache HIT for LLM call")
-        return cached
-    
-    logger.info("Cache MISS for LLM call")
-    response = await llm_client.chat.completions.create(
-        model=settings.LLM_MODEL,
-        messages=messages,
-    )
-    content = response.choices[0].message.content or ""
-    
-    await redis.set(cache_key, content, ex=settings.CACHE_TTL_LLM)
-    return content

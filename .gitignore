@@ -36,6 +36,15 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local databases (may contain scraped PII / research data)
+*.db
+*.sqlite
+*.sqlite3
+db/custom.db
+
+# worklog symlink
+worklog.md
+
 
 # typescript
 *.tsbuildinfo
@@ -52,3 +61,6 @@ prompt
 server.log
 # Skills directory
 /skills/
+# python build artifacts
+__pycache__/
+*.pyc
