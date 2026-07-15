@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useResearchStore } from '@/lib/store';
+import { authHeaders } from '@/lib/auth';
 import ReactMarkdown from 'react-markdown';
 import { Copy, Download, Loader2, ListTree, ExternalLink, Globe, RefreshCcw, Check, FileText, File as FileIcon, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -46,7 +47,7 @@ export function SessionContent({ onRegenerate }: { onRegenerate?: () => void }) 
     try {
       const res = await fetch('/api/agent/research/summarize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ report }),
       });
       const data = await res.json();

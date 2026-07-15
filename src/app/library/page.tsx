@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/auth';
+import { useAuthStore, authHeaders } from '@/lib/auth';
 import { FileText, CheckCircle2, XCircle, Loader2, ArrowRight, Trash2, Clock, ExternalLink } from 'lucide-react';
 
 interface HistoryItem {
@@ -25,9 +25,7 @@ export default function LibraryPage() {
   useEffect(() => {
     async function load() {
       try {
-        const params = new URLSearchParams();
-        if (user?.id) params.set('userId', user.id);
-        const res = await fetch(`/api/agent/history?${params}`);
+        const res = await fetch(`/api/agent/history`, { headers: authHeaders() });
         if (res.ok) {
           const data = await res.json();
           setItems(data.items || []);
@@ -44,7 +42,7 @@ export default function LibraryPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this session?')) return;
     try {
-      await fetch(`/api/agent/session/${id}`, { method: 'DELETE' });
+      await fetch(`/api/agent/session/${id}`, { method: 'DELETE', headers: authHeaders() });
       setItems((prev) => prev.filter((i) => i.id !== id));
     } catch (err) {
       console.error('Delete failed:', err);

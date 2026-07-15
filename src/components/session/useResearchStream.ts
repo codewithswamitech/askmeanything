@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useResearchStore } from '@/lib/store';
-import { useAuthStore } from '@/lib/auth';
+import { useAuthStore, authHeaders } from '@/lib/auth';
 import { toast } from 'sonner';
 
 export interface ClarificationQuestion {
@@ -175,7 +175,7 @@ export function useResearchSession(sessionId: string, initialQuery: string | nul
     try {
       const response = await fetch('/api/agent/research', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           query,
           settings: store.settings,
@@ -214,7 +214,7 @@ export function useResearchSession(sessionId: string, initialQuery: string | nul
     try {
       const response = await fetch('/api/agent/research', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           query: store.query,
           settings: store.settings,
@@ -259,7 +259,7 @@ export function useResearchSession(sessionId: string, initialQuery: string | nul
     try {
       const response = await fetch('/api/agent/research/regenerate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ sessionId }),
         signal: abort.signal,
       });
@@ -287,7 +287,7 @@ export function useResearchSession(sessionId: string, initialQuery: string | nul
     store.resetSession();
     store.setSessionId(id);
     try {
-      const res = await fetch(`/api/agent/session/${id}`);
+      const res = await fetch(`/api/agent/session/${id}`, { headers: authHeaders() });
       if (!res.ok) return;
       const data = await res.json();
       const session = data.session;

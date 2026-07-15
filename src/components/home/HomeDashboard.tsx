@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuthStore } from '@/lib/auth';
+import { useAuthStore, authHeaders } from '@/lib/auth';
 import { Paperclip, ChevronDown, Sparkles, Building2, User, Globe, FileText, CheckCircle2, Shield, ArrowRight, History as HistoryIcon, LayoutTemplate, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -54,10 +54,7 @@ export function HomeDashboard() {
   useEffect(() => {
     async function loadHistory() {
       try {
-        const params = new URLSearchParams();
-        if (user?.id) params.set('userId', user.id);
-        params.set('limit', '4');
-        const res = await fetch(`/api/agent/history?${params}`);
+        const res = await fetch(`/api/agent/history?limit=4`, { headers: authHeaders() });
         if (res.ok) {
           const data = await res.json();
           setHistory(data.items || []);

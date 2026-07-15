@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 const CREWAI_SERVICE_URL = process.env.CREWAI_SERVICE_URL || "http://localhost:8000";
 
 export async function POST(request: Request) {
+  const auth = request.headers.get("authorization");
+  if (!auth) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
   const body = await request.json();
   const { sessionId, report } = body;
 
@@ -16,7 +20,7 @@ export async function POST(request: Request) {
   try {
     const resp = await fetch(`${CREWAI_SERVICE_URL}/research/summarize`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: auth },
       body: JSON.stringify({ sessionId, report }),
     });
 

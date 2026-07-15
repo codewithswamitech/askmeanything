@@ -18,6 +18,22 @@ interface AuthState {
 }
 
 const AUTH_KEY = 'ama_auth_user';
+const TOKEN_KEY = 'ama_auth_token';
+
+/** Read the stored bearer token (client only). */
+export function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+/**
+ * Authorization header for authenticated API calls. Spread into a fetch
+ * `headers` object: `{ ...authHeaders(), 'Content-Type': 'application/json' }`.
+ */
+export function authHeaders(): Record<string, string> {
+  const token = getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
@@ -28,11 +44,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (typeof window === 'undefined') return;
     try {
       const stored = localStorage.getItem(AUTH_KEY);
-      if (stored) {
+      const token = localStorage.getItem(TOKEN_KEY);
+      // Require BOTH a user record and a token — a user blob alone (e.g. hand-set
+      // in devtools) is not a valid session without a server-signed token.
+      if (stored && token) {
         const user = JSON.parse(stored) as AuthUser;
         set({ user, isAuthenticated: true, isLoading: false });
       } else {
-        set({ isLoading: false });
+        set({ user: null, isAuthenticated: false, isLoading: false });
       }
     } catch {
       set({ isLoading: false });
@@ -53,6 +72,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       const data = await resp.json();
+      if (!data.token) {
+        return { success: false, error: 'Server did not return an auth token.' };
+      }
       const user: AuthUser = {
         id: data.userId,
         email: data.email,
@@ -60,6 +82,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       };
 
       localStorage.setItem(AUTH_KEY, JSON.stringify(user));
+      localStorage.setItem(TOKEN_KEY, data.token);
       set({ user, isAuthenticated: true, isLoading: false });
       return { success: true };
     } catch {
@@ -69,6 +92,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: () => {
     localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem(TOKEN_KEY);
     set({ user: null, isAuthenticated: false, isLoading: false });
   },
 }));

@@ -29,13 +29,17 @@ class Settings(BaseSettings):
     AZURE_OPENAI_DEPLOYMENT: str = "gpt-4o-mini"
     
     # App
-    SECRET_KEY: str = "change-me-to-a-random-secret-in-production"
+    # SECRET_KEY signs auth tokens — MUST be set to a long random value in every
+    # environment. Empty by default so the service fails closed instead of
+    # shipping a well-known signing key.
+    SECRET_KEY: str = ""
+    ACCESS_TOKEN_TTL_MINUTES: int = 720  # 12h
     SERVICE_PORT: int = 8000
     CORS_ORIGINS: str = "http://localhost:3001,http://localhost:3000"
-    
-    # Auth
+
+    # Auth — no default password. Login is refused until AUTH_PASSWORD is set.
     AUTH_EMAIL: str = "admin@knowyourlead.ai"
-    AUTH_PASSWORD: str = "admin123"
+    AUTH_PASSWORD: str = ""
     AUTH_USER_ID: str = "00000000-0000-0000-0000-000000000001"
     AUTH_DISPLAY_NAME: str = "Claudius"
     
@@ -51,6 +55,20 @@ class Settings(BaseSettings):
     CACHE_TTL_SCRAPE: int = 86400
     CACHE_TTL_LLM: int = 1800
     
+    @property
+    def async_database_url(self) -> str:
+        """DATABASE_URL normalized for SQLAlchemy's async driver.
+
+        Managed hosts (Render, Heroku, ...) hand out `postgres://` /
+        `postgresql://` URLs; the async engine needs the `+asyncpg` dialect.
+        """
+        url = self.DATABASE_URL
+        if url.startswith("postgres://"):
+            url = "postgresql+asyncpg://" + url[len("postgres://"):]
+        elif url.startswith("postgresql://"):
+            url = "postgresql+asyncpg://" + url[len("postgresql://"):]
+        return url
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]

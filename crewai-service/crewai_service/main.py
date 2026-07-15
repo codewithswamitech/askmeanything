@@ -7,16 +7,16 @@ truststore.inject_into_ssl()
 import json
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from crewai_service.core.config import settings
 from crewai_service.core.database import init_db, async_session
 from crewai_service.core.cache import get_redis, close_redis
+from crewai_service.core.auth import get_current_user
+from crewai_service.core.limiter import limiter
 from crewai_service.api.routes import router as research_router
 from crewai_service.api.auth_routes import router as auth_router
 from crewai_service.core.research import run_deep_research, regenerate_report_only
@@ -27,8 +27,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager
@@ -84,7 +82,7 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
 
 @app.post("/research/stream")
 @limiter.limit(settings.RATE_LIMIT)
-async def research_stream(request: Request):
+async def research_stream(request: Request, user_id: str = Depends(get_current_user)):
     body = await request.json()
     query = body.get("query", "").strip()
     if not query:
@@ -94,11 +92,17 @@ async def research_stream(request: Request):
     user_answers = body.get("userAnswers", "")
     max_sources = body.get("maxSources", settings.DEFAULT_MAX_SOURCES)
     pages_to_scrape = body.get("pagesToScrape", settings.DEFAULT_PAGES_TO_SCRAPE)
-    user_id = body.get("userId")
+    # Identity comes from the verified token, not the request body.
 
     async def event_generator():
         db = async_session()
         try:
+            # Resuming/continuing an existing session must belong to the caller.
+            if session_id:
+                existing = await db.get(ResearchSession, session_id)
+                if not existing or str(existing.user_id) != str(user_id):
+                    yield {"event": "error", "data": json.dumps({"error": "Session not found"})}
+                    return
             async for event in run_deep_research(
                 query=query,
                 user_id=user_id,
@@ -123,7 +127,8 @@ async def research_stream(request: Request):
 
 
 @app.post("/research/regenerate")
-async def regenerate_report(request: Request):
+@limiter.limit(settings.RATE_LIMIT)
+async def regenerate_report(request: Request, user_id: str = Depends(get_current_user)):
     body = await request.json()
     session_id = body.get("sessionId")
     if not session_id:
@@ -132,6 +137,11 @@ async def regenerate_report(request: Request):
     async def event_generator():
         db = async_session()
         try:
+            # Only the owner may regenerate a report.
+            existing = await db.get(ResearchSession, session_id)
+            if not existing or str(existing.user_id) != str(user_id):
+                yield {"event": "error", "data": json.dumps({"error": "Session not found"})}
+                return
             async for event in regenerate_report_only(
                 session_id=session_id,
                 db_session=db,

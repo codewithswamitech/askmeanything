@@ -1,5 +1,5 @@
 import json
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,12 +8,26 @@ from sqlalchemy.orm import selectinload
 from openai import AsyncOpenAI
 from crewai_service.core.config import settings
 from crewai_service.core.database import get_db
+from crewai_service.core.auth import get_current_user
+from crewai_service.core.limiter import limiter
 from crewai_service.core.llm import get_async_llm
 from crewai_service.core.research import generate_clarification
 from crewai_service.core.tools import cached_tavily_search
 from crewai_service.models.models import ResearchSession, AgentStep, SearchResult
 
 router = APIRouter(prefix="/research", tags=["research"])
+
+
+async def _owned_session(session_id: str, user_id: str, db: AsyncSession) -> ResearchSession:
+    """Load a session and verify it belongs to the caller, else 404.
+
+    Returns 404 (not 403) on an ownership mismatch so callers can't probe which
+    session IDs exist.
+    """
+    session = await db.get(ResearchSession, session_id)
+    if not session or str(session.user_id) != str(user_id):
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
 
 
 class ResearchStartRequest(BaseModel):
@@ -49,11 +63,18 @@ class HistoryItem(BaseModel):
 
 
 @router.post("/clarify")
-async def get_clarification(request: ResearchStartRequest, db: AsyncSession = Depends(get_db)):
-    if not request.query.strip():
+@limiter.limit(settings.RATE_LIMIT)
+async def get_clarification(
+    request: Request,
+    body: ResearchStartRequest,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user),
+):
+    if not body.query.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty")
 
-    session = ResearchSession(query=request.query.strip(), user_id=request.userId, status="pending")
+    # Ownership is derived from the authenticated token, never from the request body.
+    session = ResearchSession(query=body.query.strip(), user_id=user_id, status="pending")
     db.add(session)
     await db.flush()
 
@@ -61,12 +82,12 @@ async def get_clarification(request: ResearchStartRequest, db: AsyncSession = De
 
     pre_search_results = None
     try:
-        search_data = await cached_tavily_search(request.query.strip(), max_results=5)
+        search_data = await cached_tavily_search(body.query.strip(), max_results=5)
         pre_search_results = search_data.get("results", [])
     except Exception:
         pass
 
-    result = await generate_clarification(llm, request.query, pre_search_results=pre_search_results)
+    result = await generate_clarification(llm, body.query, pre_search_results=pre_search_results)
 
     if result.get("needs_clarification") and result.get("questions"):
         return {
@@ -86,7 +107,13 @@ async def get_clarification(request: ResearchStartRequest, db: AsyncSession = De
 
 
 @router.post("/summarize")
-async def summarize_report(request: SummarizeRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit(settings.RATE_LIMIT)
+async def summarize_report(
+    request: Request,
+    body: SummarizeRequest,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user),
+):
     """Generate a concise executive summary of a completed report.
 
     Accepts either an explicit `report` body or a `sessionId` to look the
@@ -94,13 +121,11 @@ async def summarize_report(request: SummarizeRequest, db: AsyncSession = Depends
     not overwrite the session's `summary` field, which is used as the short
     history preview elsewhere.
     """
-    report = (request.report or "").strip()
+    report = (body.report or "").strip()
     session = None
 
-    if request.sessionId:
-        session = await db.get(ResearchSession, request.sessionId)
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
+    if body.sessionId:
+        session = await _owned_session(body.sessionId, user_id, db)
         if not report:
             report = (session.report or "").strip()
 
@@ -137,14 +162,20 @@ async def summarize_report(request: SummarizeRequest, db: AsyncSession = Depends
 
 @router.get("/history")
 async def get_history(
-    userId: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user),
 ):
-    query = select(ResearchSession).options(selectinload(ResearchSession.steps), selectinload(ResearchSession.search_results)).order_by(desc(ResearchSession.created_at))
-    if userId:
-        query = query.where(ResearchSession.user_id == userId)
+    # Bound pagination and scope strictly to the authenticated user.
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+    query = (
+        select(ResearchSession)
+        .options(selectinload(ResearchSession.steps), selectinload(ResearchSession.search_results))
+        .where(ResearchSession.user_id == user_id)
+        .order_by(desc(ResearchSession.created_at))
+    )
     query = query.offset(offset).limit(limit)
 
     result = await db.execute(query)
@@ -169,8 +200,16 @@ async def get_history(
 
 
 @router.get("/session/{session_id}")
-async def get_session(session_id: str, db: AsyncSession = Depends(get_db)):
-    query = select(ResearchSession).options(selectinload(ResearchSession.steps), selectinload(ResearchSession.search_results)).where(ResearchSession.id == session_id)
+async def get_session(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user),
+):
+    query = (
+        select(ResearchSession)
+        .options(selectinload(ResearchSession.steps), selectinload(ResearchSession.search_results))
+        .where(ResearchSession.id == session_id, ResearchSession.user_id == user_id)
+    )
     result = await db.execute(query)
     session = result.scalars().first()
     if not session:
@@ -216,18 +255,23 @@ async def get_session(session_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.delete("/session/{session_id}")
-async def delete_session(session_id: str, db: AsyncSession = Depends(get_db)):
-    session = await db.get(ResearchSession, session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+async def delete_session(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user),
+):
+    session = await _owned_session(session_id, user_id, db)
     await db.delete(session)
     return {"deleted": True}
 
 
 @router.put("/session/{session_id}/notes")
-async def update_notes(session_id: str, body: dict, db: AsyncSession = Depends(get_db)):
-    session = await db.get(ResearchSession, session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+async def update_notes(
+    session_id: str,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user),
+):
+    session = await _owned_session(session_id, user_id, db)
     session.notes = body.get("notes", "")
     return {"updated": True}

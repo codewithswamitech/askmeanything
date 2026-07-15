@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/auth';
+import { useAuthStore, authHeaders } from '@/lib/auth';
 import { FileText, CheckCircle2, Download, Copy, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -24,9 +24,7 @@ export default function ReportsPage() {
   useEffect(() => {
     async function load() {
       try {
-        const params = new URLSearchParams();
-        if (user?.id) params.set('userId', user.id);
-        const res = await fetch(`/api/agent/history?${params}`);
+        const res = await fetch(`/api/agent/history`, { headers: authHeaders() });
         if (res.ok) {
           const data = await res.json();
           setItems((data.items || []).filter((i: ReportItem) => i.status === 'completed' && i.report));
@@ -40,8 +38,16 @@ export default function ReportsPage() {
     load();
   }, [user]);
 
-  const handleExport = (id: string, format: string) => {
-    window.open(`/api/agent/session/${id}/export?format=${format}`, '_blank');
+  const handleExport = (item: ReportItem) => {
+    // The report markdown is already loaded client-side, so export locally
+    // rather than round-tripping to the backend.
+    const blob = new Blob([item.report || ''], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `research-${item.id.slice(0, 6)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleCopy = (report: string) => {
@@ -104,7 +110,7 @@ export default function ReportsPage() {
                   <button onClick={() => handleCopy(item.report || '')} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors" title="Copy">
                     <Copy className="h-4 w-4" />
                   </button>
-                  <button onClick={() => handleExport(item.id, 'md')} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors" title="Export MD">
+                  <button onClick={() => handleExport(item)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors" title="Export MD">
                     <Download className="h-4 w-4" />
                   </button>
                   <button onClick={() => router.push(`/session/${item.id}`)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="View">

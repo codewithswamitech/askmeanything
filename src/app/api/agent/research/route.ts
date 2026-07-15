@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 const CREWAI_SERVICE_URL = process.env.CREWAI_SERVICE_URL || "http://localhost:8000";
 
 export async function POST(request: Request) {
+  const auth = request.headers.get("authorization");
+  if (!auth) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
   const body = await request.json();
   const { query, sessionId, userAnswers, maxSources, pagesToScrape, userId } = body;
 
@@ -15,7 +19,7 @@ export async function POST(request: Request) {
     try {
       const clarifyResp = await fetch(`${CREWAI_SERVICE_URL}/research/clarify`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: auth },
         body: JSON.stringify({ query: query.trim(), maxSources: maxSources ?? 10, pagesToScrape: pagesToScrape ?? 8, userId }),
       });
 
@@ -54,17 +58,17 @@ export async function POST(request: Request) {
         }
 
         // No clarification needed — proceed directly
-        return streamResearch(query, clarifyData.sessionId, "", maxSources, pagesToScrape, userId);
+        return streamResearch(query, clarifyData.sessionId, "", maxSources, pagesToScrape, userId, auth);
       }
     } catch (err) {
       console.error("[bridge] Clarification failed:", err);
       // Fallback: proceed without clarification
-      return streamResearch(query, sessionId, "", maxSources, pagesToScrape, userId);
+      return streamResearch(query, sessionId, "", maxSources, pagesToScrape, userId, auth);
     }
   }
 
   // Step 2: User answered — stream full research
-  return streamResearch(query, sessionId, userAnswers, maxSources, pagesToScrape, userId);
+  return streamResearch(query, sessionId, userAnswers, maxSources, pagesToScrape, userId, auth);
 }
 
 function streamResearch(
@@ -74,6 +78,7 @@ function streamResearch(
   maxSources: number | undefined,
   pagesToScrape: number | undefined,
   userId: string | undefined,
+  auth: string,
 ) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -89,7 +94,7 @@ function streamResearch(
       try {
         const resp = await fetch(`${CREWAI_SERVICE_URL}/research/stream`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: auth },
           body: JSON.stringify({
             query,
             sessionId,
